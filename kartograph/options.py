@@ -146,6 +146,7 @@ def parse_layers(opts):
 
 def parse_layer_offset(layer):
     if 'offset' not in layer:
+        layer['offset']={}
         layer['offset']['x']=0.0
         layer['offset']['y']=0.0
         return

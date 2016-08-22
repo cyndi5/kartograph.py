@@ -29,23 +29,27 @@ class ShapefileLayer(LayerSource):
         self.shapes = {}
         self.load_records()
         self.proj = None
+
         # Check if there's a spatial reference
         prj_src = src[:-4] + '.prj'
         if exists(prj_src):
             prj_text = open(prj_src).read()
             srs = SpatialReference()
             wkt_ret=srs.ImportFromWkt(prj_text)
+            print "srs={0}".format(srs)
             if wkt_ret:
                 raise ValueError("Error importing PRJ information from: %s" % prj_file)
             if srs.IsProjected():
-                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
-#                self.proj = pyproj.Proj(export_srs)
+                print "Groomp"
+#                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
+                self.proj = pyproj.Proj(export_srs)
             else:
-#                export_srs=srs.ExportToProj4()
-                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
-           #     self.proj = pyproj.Proj(init='epsg:26915')
+                export_srs=srs.ExportToProj4()
+                print 'export_srs={0}'.format(export_srs)
+                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='GRS80')
+                #self.proj = pyproj.Proj(export_srs)
         else:
- #           print 'choo'
+            print 'choo'
             self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
            #   
             #self.proj = pyproj.Proj(init='epsg:26915')
@@ -104,7 +108,7 @@ class ShapefileLayer(LayerSource):
                 drec[self.attributes[j]] = self.recs[i][j]
             # For each record that is not filtered..
             if filter is None or filter(drec):
-                print 'doing {0}'.format(drec['NAME'])
+#                print 'doing {0}'.format(drec['NAME'])
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
                 for j in range(len(self.attributes)):
@@ -193,12 +197,12 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None):
             for k in range(len(pts)):
                 pts[k] = pts[k][:2]
         if proj and shp.alreadyProj is False:
-            print 'BOO: shp.name={0}'.format(shp.name)
+#            print 'BOO: shp.name={0}'.format(shp.name)
             project_coords(pts, proj)
             if shp.bounding:
                 shp.alreadyProj=True
-        elif proj:
-            print 'MOO: shp.name={0}'.format(shp.name)
+ #       elif proj:
+ #           print 'MOO: shp.name={0}'.format(shp.name)
 
         cw = is_clockwise(pts)
         if cw:

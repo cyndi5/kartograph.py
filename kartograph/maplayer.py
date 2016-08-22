@@ -41,7 +41,7 @@ class MapLayer(object):
         Returns a list of projected and filtered features of a layer.
         """
         opts = layer.map.options
-        is_projected = False
+        is_projected = False # should this be left?
 
         # Let's see if theres a better bounding box than this..
         bbox = [-180, -90, 180, 90]
