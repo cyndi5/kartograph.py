@@ -29,7 +29,7 @@ class ShapefileLayer(LayerSource):
         self.shapes = {}
         self.load_records()
         self.proj = None
-
+        self.offset = {'x':0, 'y':0}
         # Check if there's a spatial reference
         prj_src = src[:-4] + '.prj'
         if exists(prj_src):
@@ -86,11 +86,13 @@ class ShapefileLayer(LayerSource):
         if i in self.shapes:
             self.shapes.pop(i)
 
-    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False):
+    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}):
         """
         ### Get features
         """
         res = []
+        self.offset=offset
+        print 'get_features, self.offset={0}'.format(self.offset)
         # We will try these encodings..
         known_encodings = ['utf-8', 'latin-1', 'iso-8859-2', 'iso-8859-15']
         try_encodings = [charset]
@@ -134,7 +136,7 @@ class ShapefileLayer(LayerSource):
                 shp.name=drec['NAME']
                 shp.bounding=bounding
                 # ..and convert the raw shape into a shapely.geometry
-                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
+                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset)
                 if geom is None:
                     ignored += 1
                     self.forget_shape(i)
@@ -153,7 +155,7 @@ class ShapefileLayer(LayerSource):
 # # shape2geometry
 
 
-def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=None):
+def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=None, offset={'x':0, 'y':0}):
     if shp is None:
         return None
     if bbox and shp.shapeType != 1:
@@ -168,7 +170,7 @@ def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=Non
             return None
 
     if shp.shapeType in (5, 15):  # multi-polygon
-        geom = shape2polygon(shp, ignore_holes=ignore_holes, min_area=min_area, proj=proj)
+        geom = shape2polygon(shp, ignore_holes=ignore_holes, min_area=min_area, proj=proj, offset=offset)
     elif shp.shapeType in (3, 13):  # line
         geom = shape2line(shp, proj=proj)
     elif shp.shapeType == 1: # point
@@ -178,7 +180,7 @@ def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=Non
     return geom
 
 
-def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None):
+def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x':0, 'y':0}):
     """
     converts a shapefile polygon to geometry.MultiPolygon
     """
@@ -198,7 +200,7 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None):
                 pts[k] = pts[k][:2]
         if proj and shp.alreadyProj is False:
 #            print 'BOO: shp.name={0}'.format(shp.name)
-            project_coords(pts, proj)
+            project_coords(pts, proj, offset)
             if shp.bounding:
                 shp.alreadyProj=True
  #       elif proj:
@@ -281,8 +283,8 @@ def shape2point(shp, proj=None):
         raise KartographError('shapefile import failed - no points found')
     
   
-def project_coords(pts, proj):
+def project_coords(pts, proj, offset):
     for i in range(len(pts)):
         x, y = proj(pts[i][0], pts[i][1], inverse=True)
-        pts[i][0] = x
-        pts[i][1] = y
+        pts[i][0] = x+offset['x']
+        pts[i][1] = y+offset['y']

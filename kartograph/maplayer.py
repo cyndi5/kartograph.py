@@ -20,6 +20,7 @@ class MapLayer(object):
         print 'maplayer.init'
         self.id = id
         self.options = options
+#        print 'self.options={0}'.format(self.options)
         self.map = _map
         self.cache = cache
         if 'class' not in options:
@@ -41,6 +42,8 @@ class MapLayer(object):
         Returns a list of projected and filtered features of a layer.
         """
         opts = layer.map.options
+        print 'layer.options={0}'.format(layer.options)
+#        print 'layer.map.options={0}'.format(layer.map.options)
         is_projected = False # should this be left?
 
         # Let's see if theres a better bounding box than this..
@@ -79,7 +82,7 @@ class MapLayer(object):
                 filter=filter,
                 bbox=bbox,
                 ignore_holes='ignore-holes' in layer.options and layer.options['ignore-holes'],
-                charset=layer.options['charset']
+                charset=layer.options['charset'], offset=layer.options['offset']
             )
             if _verbose:
                 #print 'loaded %d features from shapefile %s' % (len(features), layer.options['src'])

@@ -23,7 +23,7 @@ class Map(object):
     def __init__(me, options, layerCache, format='svg', src_encoding=None):
         me.options = options
         me.format = format
-        print 'map.init'
+        print 'map.init : me.options={0}'.format(me.options)
         # List and dictionary references to the map layers.
         me.layers = []
         me.layersById = {}
