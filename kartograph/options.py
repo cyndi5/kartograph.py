@@ -142,7 +142,17 @@ def parse_layers(opts):
         parse_layer_simplify(layer)
         parse_layer_subtract(layer)
         parse_layer_cropping(layer)
+        parse_layer_offset(layer)
 
+def parse_layer_offset(layer):
+    if 'offset' not in layer:
+        layer['offset']['x']=0.0
+        layer['offset']['y']=0.0
+        return
+    if 'x' not in layer['offset']:
+        layer['offset']['x']=0.0
+    if 'y' not in layer['offset']:
+        layer['offset']['y']=0.0
 
 def parse_layer_attributes(layer):
     if 'attributes' not in layer:
