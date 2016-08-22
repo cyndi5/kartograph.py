@@ -17,6 +17,7 @@ class MapLayer(object):
 
     def __init__(self, id, options, _map, cache):
         # Store layer properties as instance properties
+        print 'maplayer.init'
         self.id = id
         self.options = options
         self.map = _map
@@ -98,16 +99,23 @@ class MapLayer(object):
             elif layer.options['special'] == "sea":
                 features = layer.source.get_features(layer.map.proj)
                 is_projected = True
-
+        
+        print 'len of features={0}'.format(len(features))
         for feature in features:
+            #print 'feature={0}'.format(feature)
             # If the features are not projected yet, we project them now.
             if not is_projected:
                 feature.project(layer.map.proj)
-            # Transform features to view coordinates.
+            else:
+              feature.project(layer.map.proj)
+  
+          # Transform features to view coordinates.
             feature.project_view(layer.map.view)
-
+#        if layer.id=="countylayer":
+#            print 'feature.geometry={0}'.format(feature.geometry)
         # Remove features that don't intersect our clipping polygon
-        if layer.map.view_poly:
-            features = [feature for feature in features
-            if feature.geometry and feature.geometry.intersects(layer.map.view_poly)]
+#        if layer.map.view_poly:
+#            features = [feature for feature in features
+#            if feature.geometry and feature.geometry.intersects(layer.map.view_poly)]
         layer.features = features
+        print 'len of features={0}'.format(len(layer.features))

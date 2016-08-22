@@ -23,6 +23,7 @@ class Map(object):
     def __init__(me, options, layerCache, format='svg', src_encoding=None):
         me.options = options
         me.format = format
+        print 'map.init'
         # List and dictionary references to the map layers.
         me.layers = []
         me.layersById = {}
@@ -38,15 +39,19 @@ class Map(object):
         # Construct [MapLayer](maplayer.py) instances for every layer and store references
         # to the layers in a list and a dictionary.
         for layer_cfg in options['layers']:
+            #print 'layer_cfg={0}\n'.format(layer_cfg)
             layer_id = layer_cfg['id']
             layer = MapLayer(layer_id, layer_cfg, me, layerCache)
+            
             me.layers.append(layer)
             me.layersById[layer_id] = layer
 
         # Initialize the projection that will be used in this map. This sounds easier than
         # it is since we need to compute lot's of stuff here.
+        print 'init projection'
         me.proj = me._init_projection()
         # Compute the bounding geometry for the map.
+        print 'init bounds'
         me.bounds_poly = me._init_bounds()
         # Set up the [view](geometry/view.py) which will transform from projected coordinates
         # (e.g. in meters) to screen coordinates in our map output.
@@ -58,6 +63,7 @@ class Map(object):
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected and transformed to screen coordinates.
         for layer in me.layers:
+            print "getting features for layer={0}".format(layer)
             layer.get_features()
 
         # In each layer we will join polygons.
@@ -217,6 +223,7 @@ class Map(object):
         returns a list of all geometry that the map should
         be cropped to.
         """
+        print 'map._get_bounding_geometry'
         # Use the cached geometry, if available.
         if self._bounding_geometry_cache:
             return self._bounding_geometry_cache
@@ -231,6 +238,7 @@ class Map(object):
             raise KartographError('layer not found "%s"' % id)
         layer = self.layersById[id]
 
+        print 'layer={0}'.format(layer)
         # Construct the filter function of the layer, which specifies
         # what features should be excluded from the map completely.
         if layer.options['filter'] is False:
@@ -251,10 +259,13 @@ class Map(object):
         # Combine both filters to a single function.
         filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
         # Load the features from the layer source (e.g. a shapefile).
+
+        print 'Getting features #2 bob'
         features = layer.source.get_features(
             filter=filter,
             min_area=data["min-area"],
-            charset=layer.options['charset']
+            charset=layer.options['charset'],
+            bounding=True
         )
 
         #if verbose:
