@@ -40,7 +40,7 @@ class CsvLayer(LayerSource):
             self.xfield = xfield
             self.yfield = yfield
 
-    def get_features(self, filter=None, bbox=None, ignore_holes=False, charset='utf-8', min_area=0):
+    def get_features(self, filter=None, bbox=None, ignore_holes=False, charset='utf-8', min_area=0, bounding=False):
         # Eventually we convert the bbox list into a proper BBox instance
         if bbox is not None and not isinstance(bbox, BBox):
             bbox = BBox(bbox[2] - bbox[0], bbox[3] - bbox[1], bbox[0], bbox[1])

@@ -38,7 +38,7 @@ class PostGISLayer(LayerSource):
         cur.execute("SELECT f_geometry_column FROM geometry_columns WHERE f_table_name = '%s'" % self.table)
         self.geom_col = cur.fetchone()[0]
 
-    def get_features(self, filter=None, bbox=None, verbose=False, ignore_holes=False, min_area=False, charset='utf-8'):
+    def get_features(self, filter=None, bbox=None, verbose=False, ignore_holes=False, min_area=False, charset='utf-8', bounding=False):
         """
         ### Get features
         """

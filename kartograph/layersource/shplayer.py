@@ -34,11 +34,21 @@ class ShapefileLayer(LayerSource):
         if exists(prj_src):
             prj_text = open(prj_src).read()
             srs = SpatialReference()
-            if srs.ImportFromWkt(prj_text):
+            wkt_ret=srs.ImportFromWkt(prj_text)
+            if wkt_ret:
                 raise ValueError("Error importing PRJ information from: %s" % prj_file)
             if srs.IsProjected():
-                self.proj = pyproj.Proj(srs.ExportToProj4())
-                #print srs.ExportToProj4()
+                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
+#                self.proj = pyproj.Proj(export_srs)
+            else:
+#                export_srs=srs.ExportToProj4()
+                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
+           #     self.proj = pyproj.Proj(init='epsg:26915')
+        else:
+ #           print 'choo'
+            self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
+           #   
+            #self.proj = pyproj.Proj(init='epsg:26915')
 
     def load_records(self):
         """
@@ -72,7 +82,7 @@ class ShapefileLayer(LayerSource):
         if i in self.shapes:
             self.shapes.pop(i)
 
-    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8'):
+    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False):
         """
         ### Get features
         """
@@ -94,6 +104,7 @@ class ShapefileLayer(LayerSource):
                 drec[self.attributes[j]] = self.recs[i][j]
             # For each record that is not filtered..
             if filter is None or filter(drec):
+                print 'doing {0}'.format(drec['NAME'])
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
                 for j in range(len(self.attributes)):
@@ -114,9 +125,10 @@ class ShapefileLayer(LayerSource):
                         val = val.strip()
                     props[self.attributes[j]] = val
 
-                # Read the shape from the shapefile (can take some time..)..
+# Read the shape from the shapefile (can take some time..)..
                 shp = self.get_shape(i)
-
+                shp.name=drec['NAME']
+                shp.bounding=bounding
                 # ..and convert the raw shape into a shapely.geometry
                 geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
                 if geom is None:
@@ -124,12 +136,14 @@ class ShapefileLayer(LayerSource):
                     self.forget_shape(i)
                     continue
 
-                # Finally we construct the map feature and append it to the
-                # result list
+                    # Finally we construct the map feature and append it to the
+                    # result list
                 feature = create_feature(geom, props)
+                self.feature = feature
                 res.append(feature)
         if bbox is not None and ignored > 0 and verbose:
             print "-ignoring %d shapes (not in bounds %s )" % (ignored, bbox)
+        #self.proj=None
         return res
 
 # # shape2geometry
@@ -164,6 +178,7 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None):
     """
     converts a shapefile polygon to geometry.MultiPolygon
     """
+   # ignore_holes=True
     # from kartograph.geometry import MultiPolygon
     from shapely.geometry import Polygon, MultiPolygon
     from kartograph.geometry.utils import is_clockwise
@@ -177,8 +192,14 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None):
             # remove z-coordinate from PolygonZ contours (not supported)
             for k in range(len(pts)):
                 pts[k] = pts[k][:2]
-        if proj:
+        if proj and shp.alreadyProj is False:
+            print 'BOO: shp.name={0}'.format(shp.name)
             project_coords(pts, proj)
+            if shp.bounding:
+                shp.alreadyProj=True
+        elif proj:
+            print 'MOO: shp.name={0}'.format(shp.name)
+
         cw = is_clockwise(pts)
         if cw:
             exteriors.append(pts)
@@ -216,7 +237,9 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None):
             polygons = [poly for poly in polygons if poly.area >= min_area * max_area]
         poly = MultiPolygon(polygons)
     else:
+#        return None
         raise KartographError('shapefile import failed - no outer polygon found')
+#    print 'poly={0}'.format(poly)
     return poly
 
 

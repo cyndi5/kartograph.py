@@ -8,7 +8,7 @@ class LayerSource:
     """
     base class for layer source data providers (e.g. shapefiles)
     """
-    def get_features(self, filter=None, bbox=None, ignore_holes=False, charset='utf-8'):
+    def get_features(self, filter=None, bbox=None, ignore_holes=False, charset='utf-8', bounding=False):
         raise NotImplementedError()
 
     def find_source(self, src):

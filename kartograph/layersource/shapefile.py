@@ -85,6 +85,7 @@ class _Shape:
         are designated by their starting index in geometry record's
         list of shapes."""
         self.shapeType = shapeType
+        self.alreadyProj = False
         self.points = []
 
 class _ShapeRecord:
