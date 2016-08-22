@@ -31,7 +31,7 @@ class SvgRenderer(MapRenderer):
         # Load width and height of the map view
         # We add two pixels to the height to ensure that
         # the map fits.
-        w = self.map.view.width
+        w = self.map.view.width + 2
         h = self.map.view.height + 2
 
         # SvgDocument is a handy wrapper around xml.dom.minidom. It is defined below.
@@ -183,13 +183,13 @@ class SvgRenderer(MapRenderer):
         # label_groups = []
         for layer in self.map.layers:
             if len(layer.features) == 0:
-                # print "ignoring empty layer", layer.id
+                print "ignoring empty layer", layer.id
                 continue  # ignore empty layers
             if layer.options['render']:
                 g = svg.node('g', svg.root, id=layer.id)
                 g.setAttribute('class', ' '.join(layer.classes))
                 layer_css = self.style.applyStyle(g, layer.id, layer.classes)
-
+            
             # Create an svg group for labels of this layer
             lbl = layer.options['labeling']
             if lbl is not False:
@@ -208,6 +208,7 @@ class SvgRenderer(MapRenderer):
 
             for feat in layer.features:
                 if layer.options['render']:
+#                    print '2: rendering layer {0}'.format(layer)
                     node = self._render_feature(feat, layer.options['attributes'])
                     if node is not None:
                         feat_css = self.style.getStyle(layer.id, layer.classes, feat.props)
@@ -216,8 +217,9 @@ class SvgRenderer(MapRenderer):
                             node.setAttribute(prop, str(feat_css[prop]))
                         g.appendChild(node)
                     else:
+                        print 'NOde fail\n\n'
                         pass
-                        #sys.stderr.write("feature.to_svg is None", feat)
+                        sys.stderr.write("feature.to_svg is None", feat)
                 if lbl is not False:
                     self._render_label(layer, feat, lbl)
 
