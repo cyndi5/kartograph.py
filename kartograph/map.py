@@ -2,6 +2,8 @@ from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 from maplayer import MapLayer
 from geometry.utils import geom_to_bbox
+from geometry.utils import bbox_to_polygon
+
 from geometry import BBox, View
 from proj import projections
 from filter import filter_record
@@ -23,13 +25,14 @@ class Map(object):
     def __init__(me, options, layerCache, format='svg', src_encoding=None):
         me.options = options
         me.format = format
-        print 'map.init : me.options={0}'.format(me.options)
+#        print 'map.init : me.options={0}'.format(me.options)
         # List and dictionary references to the map layers.
         me.layers = []
         me.layersById = {}
         # We will cache the bounding geometry since we need it twice, eventually.
         me._bounding_geometry_cache = False
         me._unprojected_bounds = None
+        me._projected_bounds = None
         # The **source encoding** will be used as first guess when Kartograph tries to decode
         # the meta data of shapefiles etc. We use Unicode as default source encoding.
         if not src_encoding:
@@ -41,18 +44,30 @@ class Map(object):
         for layer_cfg in options['layers']:
             #print 'layer_cfg={0}\n'.format(layer_cfg)
             layer_id = layer_cfg['id']
-            layer = MapLayer(layer_id, layer_cfg, me, layerCache)
-            
-            me.layers.append(layer)
-            me.layersById[layer_id] = layer
+            if layer_id=='statelayer':
+                layer = MapLayer(layer_id, layer_cfg, me, layerCache)
+                me.layers.append(layer)
+                me.layersById[layer_id] = layer
 
         # Initialize the projection that will be used in this map. This sounds easier than
         # it is since we need to compute lot's of stuff here.
         print 'init projection'
         me.proj = me._init_projection()
         # Compute the bounding geometry for the map.
-        print 'init bounds'
         me.bounds_poly = me._init_bounds()
+        print 'init bounds, me._projected_bounds={0}'.format(me._projected_bounds) ##, bounds_poly={0}'.format(me.bounds_poly)
+        
+
+        # Load the other layers
+        for layer_cfg in options['layers']:
+            #print 'layer_cfg={0}\n'.format(layer_cfg)                          
+            layer_id = layer_cfg['id']
+            if layer_id!='statelayer':
+                # TODO: Change offset to match the rest of the map                    
+                layer = MapLayer(layer_id, layer_cfg, me, layerCache)
+                me.layers.append(layer)
+                me.layersById[layer_id] = layer
+
         # Set up the [view](geometry/view.py) which will transform from projected coordinates
         # (e.g. in meters) to screen coordinates in our map output.
         me.view = me._get_view()
@@ -115,6 +130,7 @@ class Map(object):
         """
         ### Determining the projection center
         """
+        print 'map.__get_map_center'
         # To find out where the map will be centered to we need to
         # know the geographical boundaries.
         opts = self.options
@@ -146,8 +162,11 @@ class Map(object):
             features = self._get_bounding_geometry()
             if len(features) > 0:
                 if isinstance(features[0].geom, BaseGeometry):
+                    print 'MOOO'
                     (lon0, lat0) = features[0].geom.representative_point().coords[0]
+                    print 'lon0, lat0={0}'.format((lon0, lat0))
             else:
+                
                 lon0 = 0
                 lat0 = 0
         else:
@@ -160,14 +179,15 @@ class Map(object):
         ### Initialize bounding polygons and bounding box
         ### Compute the projected bounding box
         """
-        from geometry.utils import bbox_to_polygon
 
         opts = self.options
         proj = self.proj
         mode = opts['bounds']['mode'][:]
         data = opts['bounds']['data']
+        padding_dict = opts['bounds']['padding-dict']
+        print 'init_bounds: mode={0}, data={1}'.format(mode, data)
         if 'padding' not in opts['bounds']:
-            padding = 0
+            padding = 2. # CHANGED from 0
         else:
             padding = opts['bounds']['padding']
 
@@ -176,7 +196,7 @@ class Map(object):
         if mode == "bbox":  # catch special case bbox
             sea = proj.bounding_geometry(data, projected=True)
             sbbox = geom_to_bbox(sea)
-            sbbox.inflate(sbbox.width * padding)
+            sbbox.inflate(pad_dict=padding_dict)
             return bbox_to_polygon(sbbox)
 
         bbox = BBox()
@@ -196,6 +216,7 @@ class Map(object):
         # geometry.
         if mode[:4] == "poly":
             features = self._get_bounding_geometry()
+
             ubbox = BBox()
             if len(features) > 0:
                 for feature in features:
@@ -203,17 +224,33 @@ class Map(object):
                     feature.project(proj)
                     fbbox = geom_to_bbox(feature.geometry, data["min-area"])
                     bbox.join(fbbox)
-                # Save the unprojected bounding box for later to
-                # determine what features can be skipped.
-                ubbox.inflate(ubbox.width * padding)
+  #              # Save the unprojected bounding box for later to
+  #              # determine what features can be skipped.
+                ubbox.inflate(pad_dict=padding_dict)
+
+#                ubbox.inflate(amount=ubbox.width*padding, diff_amounts=True,
+#                     left_amount=opts['bounds']["left-padding"], 
+#                     right_amount=opts['bounds']["right-padding"], 
+#                     top_amount=opts['bounds']["top-padding"], 
+#                     bottom_amount=opts['bounds']["bottom-padding"] )
+
                 self._unprojected_bounds = ubbox
+                print 'ubbox={0}'.format(ubbox)
             else:
                 raise KartographError('no features found for calculating the map bounds')
         # If we need some extra geometry around the map bounds, we inflate
         # the bbox according to the set *padding*.
-        bbox.inflate(bbox.width * padding)
+
+        # Instead of this, expand it by the size of the second geometry thing?
+        bbox.inflate(pad_dict=padding_dict)
+#       bbox.inflate(amount=bbox.width*padding, diff_amounts=True,
+ #                    left_amount=opts['bounds']["left-padding"], 
+ #                    right_amount=opts['bounds']["right-padding"], 
+ #                    top_amount=opts['bounds']["top-padding"], 
+ #                    bottom_amount=opts['bounds']["bottom-padding"] )
         # At the end we convert the bounding box to a Polygon because
         # we need it for clipping tasks.
+        self._projected_bounds=bbox
         return bbox_to_polygon(bbox)
 
     def _get_bounding_geometry(self):
@@ -224,6 +261,8 @@ class Map(object):
         be cropped to.
         """
         print 'map._get_bounding_geometry'
+#        proj = self.proj
+
         # Use the cached geometry, if available.
         if self._bounding_geometry_cache:
             return self._bounding_geometry_cache
@@ -232,52 +271,54 @@ class Map(object):
         features = []
         data = opts['bounds']['data']
         id = data['layer']
+        id_list=[id]
+        for id in id_list:
+            #TODO: ensure this is statelayer?
+            # Check that the layer exists.
+            if id not in self.layersById:
+                raise KartographError('layer not found "%s"' % id)
+            layer = self.layersById[id]
+            
+            print 'layer={0},\tid={1}'.format(layer,id)
+            # Construct the filter function of the layer, which specifies
+            # what features should be excluded from the map completely.
+            if layer.options['filter'] is False:
+                layerFilter = lambda a: True
+            else:
+                layerFilter = lambda rec: filter_record(layer.options['filter'], rec)
 
-        # Check that the layer exists.
-        if id not in self.layersById:
-            raise KartographError('layer not found "%s"' % id)
-        layer = self.layersById[id]
+            # Construct the filter function of the boundary, which specifies
+            # what features should be excluded from the boundary calculation.
+            # For instance, you often want to exclude Alaska and Hawaii from
+            # the boundary computation of the map, although a part of Alaska
+            # might be visible in the resulting map.
+            if data['filter']:
+                boundsFilter = lambda rec: filter_record(data['filter'], rec)
+            else:
+                boundsFilter = lambda a: True
 
-        print 'layer={0}'.format(layer)
-        # Construct the filter function of the layer, which specifies
-        # what features should be excluded from the map completely.
-        if layer.options['filter'] is False:
-            layerFilter = lambda a: True
-        else:
-            layerFilter = lambda rec: filter_record(layer.options['filter'], rec)
+            # Combine both filters to a single function.
+            filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
+            # Load the features from the layer source (e.g. a shapefile).
 
-        # Construct the filter function of the boundary, which specifies
-        # what features should be excluded from the boundary calculation.
-        # For instance, you often want to exclude Alaska and Hawaii from
-        # the boundary computation of the map, although a part of Alaska
-        # might be visible in the resulting map.
-        if data['filter']:
-            boundsFilter = lambda rec: filter_record(data['filter'], rec)
-        else:
-            boundsFilter = lambda a: True
-
-        # Combine both filters to a single function.
-        filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
-        # Load the features from the layer source (e.g. a shapefile).
-
-        print 'Getting features #2 bob'
-        features = layer.source.get_features(
-            filter=filter,
-            min_area=data["min-area"],
-            charset=layer.options['charset'],
-            bounding=True
-        )
+            print 'Getting features for id={0}'.format(id)
+            features.extend(layer.source.get_features(
+                filter=filter,
+                min_area=data["min-area"],
+                charset=layer.options['charset'],
+                bounding=True
+            ))
+#            print 'features={0}'.format(features)
 
         #if verbose:
             #print 'found %d bounding features' % len(features)
 
-        # Omit tiny islands, if needed.
-        if layer.options['filter-islands']:
-            features = [f for f in features
-                if f.geometry.area > layer.options['filter-islands']]
-
+    # Omit tiny islands, if needed.
+            if layer.options['filter-islands']:
+                features = [f for f in features
+                      if f.geometry.area > layer.options['filter-islands']]
         # Store computed boundary in cache.
-        self._bounding_geometry_cache = features
+#        self._bounding_geometry_cache = features
         return features
 
     def _get_view(self):

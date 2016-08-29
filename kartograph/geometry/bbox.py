@@ -20,7 +20,8 @@ class BBox(object):
             self.ymin = self.top = top
             self.ymax = self.bottom = height + top
             self.height = height
-
+    def __repr__(self):
+        return '(xmin, xmax, ymin, ymax)=({0},{1},{2},{3})'.format(self.xmin, self.xmax, self.ymin,self.ymax)
     def update(self, pt):
         if not isinstance(pt, Point):
             pt = Point(pt[0], pt[1])
@@ -44,21 +45,31 @@ class BBox(object):
         """ check if a point is inside the bbox """
         return pt[0] > self.xmin and pt[0] < self.xmax and pt[1] > self.ymin and pt[1] < self.ymax
 
+    def get_center(self):
+        return ((self.xmax+self.xmin)/2, (self.ymax+self.ymin)/2)
+
     def __str__(self):
-        return 'BBox(x=%.2f, y=%.2f, w=%.2f, h=%.2f)' % (self.left, self.top, self.width, self.height)
+        return 'BBox(x=%.6f, y=%.6f, w=%.6f, h=%.6f)' % (self.left, self.top, self.width, self.height)
 
     def join(self, bbox):
         self.update(Point(bbox.left, bbox.top))
         self.update(Point(bbox.right, bbox.bottom))
 
-    def inflate(self, amount=0, inflate=False):
-        if inflate:
-            d = min(self.width, self.height)
-            amount += d * inflate
-        self.xmin -= amount
-        self.ymin -= amount
-        self.xmax += amount
-        self.ymax += amount
+    def inflate(self, inflate=1, pad_dict={}):
+        d = min(self.width, self.height)
+        left_amount = d * inflate * pad_dict["left"]
+        top_amount = d * inflate * pad_dict["top"]
+        right_amount = d * inflate * pad_dict["right"]
+        bottom_amount = d * inflate * pad_dict["bottom"]
+ #       print 'amount={0}'.format(amount)
+ #       print self.xmin,self.ymin, self.xmax, self.ymax
+        self.xmin -= left_amount
+        self.ymin -= top_amount
+        self.xmax += right_amount
+        self.ymax += bottom_amount
+
+#        print self.xmin,self.ymin, self.xmax, self.ymax
+
 
         self.left = self.xmin
         self.top = self.ymin
@@ -66,6 +77,9 @@ class BBox(object):
         self.bottom = self.ymax
         self.width = self.xmax - self.xmin
         self.height = self.ymax - self.ymin
+
+    # New more finely-grained inflate, allows inflation of each side
+
 
     def __getitem__(self, k):
         if k == 0:

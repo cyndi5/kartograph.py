@@ -1,4 +1,3 @@
-
 """
 API 2.0
 helper methods for validating options dictionary
@@ -143,7 +142,11 @@ def parse_layers(opts):
         parse_layer_subtract(layer)
         parse_layer_cropping(layer)
         parse_layer_offset(layer)
+        parse_layer_scale(layer)
 
+def parse_layer_scale(layer):
+    if 'scale' not in layer:
+        layer['scale']=1
 def parse_layer_offset(layer):
     if 'offset' not in layer:
         layer['offset']={}
@@ -310,10 +313,21 @@ def parse_bounds(opts):
 
     if 'crop' not in bounds:
         bounds['crop'] = 'auto'
-
+# Note: padding in bounds specifies how much extra space we give ourselves
+# You can screw around to only make this in one direction if necessary
     if "padding" not in bounds:
         bounds["padding"] = 0
-
+    if "padding-dict" not in bounds:
+        bounds["padding-dict"] = {}
+    if "right" not in bounds["padding-dict"]:
+        bounds["padding-dict"]["right"] = bounds["padding"]
+    if "left" not in bounds["padding-dict"]:
+        bounds["padding-dict"]["left"] = bounds["padding"]
+    if "top" not in bounds["padding-dict"]:
+        bounds["padding-dict"]["top"] = bounds["padding"]
+    if "bottom" not in bounds["padding-dict"]:
+        bounds["padding-dict"]["bottom"] = bounds["padding"]
+    
     if mode == "bbox":
         try:
             if len(data) == 4:
@@ -342,7 +356,14 @@ def parse_bounds(opts):
         if "layer" not in data or not is_str(data["layer"]):
             # using the first layer for bound
             data["layer"] = opts['layers'][0]['id']
+            print 'not found layer, using {0}'.format(data["layer"])
+
+            #for i in opts['layers']:
+             #   data["layer"].append(i['id'])
+            #data["layer"] = opts['layers'][0]['id']
             # raise Error('you must specify a layer for bounds mode ' + mode)
+        else:
+            print 'data["layer"]={0}'.format(data["layer"])
         if "filter" not in data:
             data["filter"] = False
         if "attribute" not in data or not is_str(data["attribute"]):

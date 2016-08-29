@@ -1,4 +1,4 @@
-
+import sys
 from kartograph.renderer import MapRenderer
 from kartograph.errors import KartographError
 from kartograph.mapstyle import style_diff, remove_unit
@@ -63,6 +63,7 @@ class SvgRenderer(MapRenderer):
     def _render_feature(self, feature, attributes=[], labelOpts=False):
         node = self._render_geometry(feature.geometry)
         if node is None:
+            print 'node is None!!!!'
             return None
 
         if attributes == 'all':
@@ -98,6 +99,7 @@ class SvgRenderer(MapRenderer):
     def _render_geometry(self, geometry):
         from shapely.geometry import Polygon, MultiPolygon, LineString, MultiLineString, Point
         if geometry is None:
+            print 'Geometry is none!' 
             return
         if isinstance(geometry, (Polygon, MultiPolygon)):
             return self._render_polygon(geometry)
@@ -120,9 +122,11 @@ class SvgRenderer(MapRenderer):
 
         geoms = hasattr(geometry, 'geoms') and geometry.geoms or [geometry]
         for polygon in geoms:
+#            print 'polygon={0}'.format(polygon)
             if polygon is None:
                 continue
             for ring in [polygon.exterior] + list(polygon.interiors):
+                #print 'ring={0}'.format(ring)
                 cont_str = ""
                 kept = []
                 for pt in ring.coords:
@@ -138,8 +142,11 @@ class SvgRenderer(MapRenderer):
                 cont_str += "Z "
                 path_str += cont_str
         if path_str == "":
+            print 'Empty path_str!!!'
             return None
         path = self.svg.node('path', d=path_str)
+        if path is None:
+            print 'PATH IS NONE!'
         return path
 
     def _render_line(self, geometry):
@@ -208,7 +215,7 @@ class SvgRenderer(MapRenderer):
 
             for feat in layer.features:
                 if layer.options['render']:
-#                    print '2: rendering layer {0}'.format(layer)
+#                    print '2: rendering feature {0}'.format(feat)
                     node = self._render_feature(feat, layer.options['attributes'])
                     if node is not None:
                         feat_css = self.style.getStyle(layer.id, layer.classes, feat.props)
@@ -219,7 +226,7 @@ class SvgRenderer(MapRenderer):
                     else:
                         print 'NOde fail\n\n'
                         pass
-                        sys.stderr.write("feature.to_svg is None", feat)
+                        sys.stderr.write("feature.to_svg is None"+str(feat))
                 if lbl is not False:
                     self._render_label(layer, feat, lbl)
 

@@ -58,8 +58,9 @@ class MapLayer(object):
             # will use the actual bounding geometry to compute the bounding box
             if opts['bounds']['crop'] == "auto":
                 if layer.map._unprojected_bounds:
+                    print 'computing inflate stuff'
                     bbox = layer.map._unprojected_bounds
-                    bbox.inflate(inflate=opts['bounds']['padding'] * 2)
+                    bbox.inflate(inflate=2,pad_dict = opts['bounds']['padding-dict'])
                 elif _verbose:
                     pass
                     #print 'could not compute bounding box for auto-cropping'
@@ -82,7 +83,7 @@ class MapLayer(object):
                 filter=filter,
                 bbox=bbox,
                 ignore_holes='ignore-holes' in layer.options and layer.options['ignore-holes'],
-                charset=layer.options['charset'], offset=layer.options['offset']
+                charset=layer.options['charset'], offset=layer.options['offset'], scale=layer.options['scale']
             )
             if _verbose:
                 #print 'loaded %d features from shapefile %s' % (len(features), layer.options['src'])

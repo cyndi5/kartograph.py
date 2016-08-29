@@ -1,4 +1,4 @@
-
+from copy import deepcopy
 from layersource import LayerSource
 from kartograph.errors import *
 from kartograph.geometry import BBox, create_feature
@@ -6,6 +6,7 @@ from os.path import exists
 from osgeo.osr import SpatialReference
 import pyproj
 import shapefile
+#import string
 
 
 verbose = False
@@ -30,22 +31,23 @@ class ShapefileLayer(LayerSource):
         self.load_records()
         self.proj = None
         self.offset = {'x':0, 'y':0}
+        self.scale=1
         # Check if there's a spatial reference
         prj_src = src[:-4] + '.prj'
         if exists(prj_src):
             prj_text = open(prj_src).read()
             srs = SpatialReference()
             wkt_ret=srs.ImportFromWkt(prj_text)
-            print "srs={0}".format(srs)
+   #         print "srs={0}".format(srs)
             if wkt_ret:
                 raise ValueError("Error importing PRJ information from: %s" % prj_file)
             if srs.IsProjected():
-                print "Groomp"
+     #           print "Groomp"
 #                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
                 self.proj = pyproj.Proj(export_srs)
             else:
                 export_srs=srs.ExportToProj4()
-                print 'export_srs={0}'.format(export_srs)
+    #            print 'export_srs={0}'.format(export_srs)
                 self.proj=pyproj.Proj(proj='utm',zone=10,ellps='GRS80')
                 #self.proj = pyproj.Proj(export_srs)
         else:
@@ -86,12 +88,13 @@ class ShapefileLayer(LayerSource):
         if i in self.shapes:
             self.shapes.pop(i)
 
-    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}):
+    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1):
         """
         ### Get features
         """
         res = []
         self.offset=offset
+        self.scale=scale
         print 'get_features, self.offset={0}'.format(self.offset)
         # We will try these encodings..
         known_encodings = ['utf-8', 'latin-1', 'iso-8859-2', 'iso-8859-15']
@@ -109,8 +112,19 @@ class ShapefileLayer(LayerSource):
             for j in range(len(self.attributes)):
                 drec[self.attributes[j]] = self.recs[i][j]
             # For each record that is not filtered..
-            if filter is None or filter(drec):
-#                print 'doing {0}'.format(drec['NAME'])
+            is_nameless=True
+            the_feat_name=''
+            if 'NAME' in drec:
+                the_feat_name=drec['NAME']
+            elif 'FULLNAME' in drec:
+                the_feat_name=drec['FULLNAME']
+            if len(the_feat_name.strip())>0:
+                is_nameless=False
+            if filter is None or filter(drec): 
+                the_feat_name=the_feat_name.strip('\n');
+                sq_miles_water=drec['AWATER']/(640*4046.86)
+#                if sq_miles_water>=1:
+#                    print 'Name: {0}\t{1:.2f} sq miles'.format(the_feat_name, sq_miles_water)
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
                 for j in range(len(self.attributes)):
@@ -133,10 +147,10 @@ class ShapefileLayer(LayerSource):
 
 # Read the shape from the shapefile (can take some time..)..
                 shp = self.get_shape(i)
-                shp.name=drec['NAME']
                 shp.bounding=bounding
-                # ..and convert the raw shape into a shapely.geometry
-                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset)
+                shp.the_feat_name=the_feat_name
+               # ..and convert the raw shape into a shapely.geometry
+                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale)
                 if geom is None:
                     ignored += 1
                     self.forget_shape(i)
@@ -150,12 +164,13 @@ class ShapefileLayer(LayerSource):
         if bbox is not None and ignored > 0 and verbose:
             print "-ignoring %d shapes (not in bounds %s )" % (ignored, bbox)
         #self.proj=None
+#        print 'res={0}'.format(res)
         return res
 
 # # shape2geometry
 
 
-def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=None, offset={'x':0, 'y':0}):
+def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=None, offset={'x':0, 'y':0}, scale=1):
     if shp is None:
         return None
     if bbox and shp.shapeType != 1:
@@ -170,7 +185,7 @@ def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=Non
             return None
 
     if shp.shapeType in (5, 15):  # multi-polygon
-        geom = shape2polygon(shp, ignore_holes=ignore_holes, min_area=min_area, proj=proj, offset=offset)
+        geom = shape2polygon(shp, ignore_holes=ignore_holes, min_area=min_area, proj=proj, offset=offset, scale=scale)
     elif shp.shapeType in (3, 13):  # line
         geom = shape2line(shp, proj=proj)
     elif shp.shapeType == 1: # point
@@ -180,7 +195,7 @@ def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=Non
     return geom
 
 
-def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x':0, 'y':0}):
+def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x':0, 'y':0}, scale=1):
     """
     converts a shapefile polygon to geometry.MultiPolygon
     """
@@ -191,7 +206,9 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
     parts = shp.parts[:]
     parts.append(len(shp.points))
     exteriors = []
+    rep_point = None
     holes = []
+#    print 'shp.represenative_points={0}'.format(shp.representative_point())
     for j in range(len(parts) - 1):
         pts = shp.points[parts[j]:parts[j + 1]]
         if shp.shapeType == 15:
@@ -200,7 +217,9 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
                 pts[k] = pts[k][:2]
         if proj and shp.alreadyProj is False:
 #            print 'BOO: shp.name={0}'.format(shp.name)
-            project_coords(pts, proj, offset)
+            temp_poly=Polygon(pts,None)
+            rep_point=temp_poly.representative_point()
+            project_coords(pts, proj, offset,scale, rep_point=rep_point)
             if shp.bounding:
                 shp.alreadyProj=True
  #       elif proj:
@@ -214,8 +233,10 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
     if ignore_holes:
         holes = None
     if len(exteriors) == 1:
+ #       print 'Single polygon, {0}'.format(shp.the_feat_name)
         poly = Polygon(exteriors[0], holes)
     elif len(exteriors) > 1:
+#        print 'Multipolygon, {0}'.format(shp.the_feat_name)
         # use multipolygon, but we need to assign the holes to the right
         # exteriors
         from kartograph.geometry import BBox
@@ -283,8 +304,27 @@ def shape2point(shp, proj=None):
         raise KartographError('shapefile import failed - no points found')
     
   
-def project_coords(pts, proj, offset):
+def project_coords(pts, proj, offset, scale, rep_point=None):
+    from shapely.geometry import Polygon, MultiPolygon
+    if rep_point is not None:
+        pass
+#    print 'rep_point={0}'.format(rep_point)
+#    print 'scale={0}'.format(scale)
+#    pts2=deepcopy(pts) 
     for i in range(len(pts)):
         x, y = proj(pts[i][0], pts[i][1], inverse=True)
-        pts[i][0] = x+offset['x']
-        pts[i][1] = y+offset['y']
+        if i==0:
+            temp_x=x
+            temp_y=y
+        pts[i][0] = x*scale
+        pts[i][1] = y*scale
+    diff_lat=pts[0][0]-temp_x
+    diff_lon=pts[0][1]-temp_y
+ #   for i in range(len(pts)):
+ #       x=pts[i][0]-pts2[i][0]
+ #       y=pts[i][1]-pts2[i][1]
+ #       print '(x,y)=({0},{1})'.format(x,y)
+    for i in range(len(pts)):
+        pts[i][0]-=diff_lat
+        pts[i][1]-=diff_lon
+#    print 'diff_lat={0}, diff_lon={1}'.format(diff_lat,diff_lon)
