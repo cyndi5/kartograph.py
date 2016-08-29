@@ -88,11 +88,12 @@ class ShapefileLayer(LayerSource):
         if i in self.shapes:
             self.shapes.pop(i)
 
-    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1):
+    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0)):
         """
         ### Get features
         """
         res = []
+        self.init_offset=init_offset
         self.offset=offset
         self.scale=scale
         print 'get_features, self.offset={0}'.format(self.offset)
@@ -150,7 +151,8 @@ class ShapefileLayer(LayerSource):
                 shp.bounding=bounding
                 shp.the_feat_name=the_feat_name
                # ..and convert the raw shape into a shapely.geometry
-                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale)
+#                print 'self.init_offset={0}'.format(self.init_offset)
+                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
                 if geom is None:
                     ignored += 1
                     self.forget_shape(i)
@@ -167,10 +169,85 @@ class ShapefileLayer(LayerSource):
 #        print 'res={0}'.format(res)
         return res
 
+    # get the initial offset as a tuple for scaling this thing
+    def get_init_offset(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1):
+        """
+        ### Get features
+        """
+        result = None
+        self.offset=offset
+        self.scale=scale
+        
+        print 'get_features, self.offset={0}'.format(self.offset)
+        # We will try these encodings..
+        known_encodings = ['utf-8', 'latin-1', 'iso-8859-2', 'iso-8859-15']
+        try_encodings = [charset]
+        for enc in known_encodings:
+            if enc != charset:
+                try_encodings.append(enc)
+        # Eventually we convert the bbox list into a proper BBox instance
+        if bbox is not None and not isinstance(bbox, BBox):
+            bbox = BBox(bbox[2] - bbox[0], bbox[3] - bbox[1], bbox[0], bbox[1])
+        ignored = 0
+        # Read all record attributes
+        drec = {}
+        for i in range(0, len(self.recs)):
+            for j in range(len(self.attributes)):
+                drec[self.attributes[j]] = self.recs[i][j]
+            # For each record that is not filtered..
+            is_nameless=True
+            the_feat_name=''
+            if 'NAME' in drec:
+                the_feat_name=drec['NAME']
+            elif 'FULLNAME' in drec:
+                the_feat_name=drec['FULLNAME']
+            if len(the_feat_name.strip())>0:
+                is_nameless=False
+            if filter is None or filter(drec): 
+                the_feat_name=the_feat_name.strip('\n');
+                sq_miles_water=drec['AWATER']/(640*4046.86)
+#                if sq_miles_water>=1:
+#                    print 'Name: {0}\t{1:.2f} sq miles'.format(the_feat_name, sq_miles_water)
+                props = {}
+                # ..we try to decode the attributes (shapefile charsets are arbitrary)
+                for j in range(len(self.attributes)):
+                    val = self.recs[i][j]
+                    decoded = False
+                    if isinstance(val, str):
+                        for enc in try_encodings:
+                            try:
+                                val = val.decode(enc)
+                                decoded = True
+                                break
+                            except:
+                                if verbose:
+                                    print 'warning: could not decode "%s" to %s' % (val, enc)
+                        if not decoded:
+                            raise KartographError('having problems to decode the input data "%s"' % val)
+                    if isinstance(val, (str, unicode)):
+                        val = val.strip()
+                    props[self.attributes[j]] = val
+
+# Read the shape from the shapefile (can take some time..)..
+                shp = self.get_shape(i)
+                shp.bounding=bounding
+                shp.the_feat_name=the_feat_name
+
+                pts = shp.points
+               # ..and convert the raw shape into a shapely.geometry
+                    # result list
+                return get_scale_offset(pts,self.proj,scale)
+        if bbox is not None and ignored > 0 and verbose:
+            print "-ignoring %d shapes (not in bounds %s )" % (ignored, bbox)
+        #self.proj=None
+#        print 'res={0}'.format(res)
+        raise KartographError('having problems with sidelayer') 
+        return result
+
 # # shape2geometry
 
 
-def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=None, offset={'x':0, 'y':0}, scale=1):
+def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=None, offset={'x':0, 'y':0}, scale=1, init_offset=(0,0)):
     if shp is None:
         return None
     if bbox and shp.shapeType != 1:
@@ -185,7 +262,7 @@ def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=Non
             return None
 
     if shp.shapeType in (5, 15):  # multi-polygon
-        geom = shape2polygon(shp, ignore_holes=ignore_holes, min_area=min_area, proj=proj, offset=offset, scale=scale)
+        geom = shape2polygon(shp, ignore_holes=ignore_holes, min_area=min_area, proj=proj, offset=offset, scale=scale, init_offset=init_offset)
     elif shp.shapeType in (3, 13):  # line
         geom = shape2line(shp, proj=proj)
     elif shp.shapeType == 1: # point
@@ -195,7 +272,7 @@ def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=Non
     return geom
 
 
-def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x':0, 'y':0}, scale=1):
+def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x':0, 'y':0}, scale=1, init_offset=(0, 0)):
     """
     converts a shapefile polygon to geometry.MultiPolygon
     """
@@ -217,9 +294,9 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
                 pts[k] = pts[k][:2]
         if proj and shp.alreadyProj is False:
 #            print 'BOO: shp.name={0}'.format(shp.name)
-            temp_poly=Polygon(pts,None)
-            rep_point=temp_poly.representative_point()
-            project_coords(pts, proj, offset,scale, rep_point=rep_point)
+#            temp_poly=Polygon(pts,None)
+#            rep_point=temp_poly.representative_point()
+            project_coords(pts, proj, offset,scale, rep_point=rep_point, init_offset=init_offset)
             if shp.bounding:
                 shp.alreadyProj=True
  #       elif proj:
@@ -304,27 +381,32 @@ def shape2point(shp, proj=None):
         raise KartographError('shapefile import failed - no points found')
     
   
-def project_coords(pts, proj, offset, scale, rep_point=None):
+def project_coords(pts, proj, offset, scale, rep_point=None, init_offset=(0,0)):
     from shapely.geometry import Polygon, MultiPolygon
-    if rep_point is not None:
-        pass
-#    print 'rep_point={0}'.format(rep_point)
-#    print 'scale={0}'.format(scale)
-#    pts2=deepcopy(pts) 
     for i in range(len(pts)):
         x, y = proj(pts[i][0], pts[i][1], inverse=True)
-        if i==0:
-            temp_x=x
-            temp_y=y
-        pts[i][0] = x*scale
-        pts[i][1] = y*scale
-    diff_lat=pts[0][0]-temp_x
-    diff_lon=pts[0][1]-temp_y
- #   for i in range(len(pts)):
- #       x=pts[i][0]-pts2[i][0]
- #       y=pts[i][1]-pts2[i][1]
- #       print '(x,y)=({0},{1})'.format(x,y)
-    for i in range(len(pts)):
-        pts[i][0]-=diff_lat
-        pts[i][1]-=diff_lon
-#    print 'diff_lat={0}, diff_lon={1}'.format(diff_lat,diff_lon)
+        pts[i][0] = x*scale+init_offset[0]+offset['x']
+        pts[i][1] = y*scale+init_offset[1]+offset['y']
+
+def get_scale_offset(pts, proj,  scale):
+    from shapely.geometry import Polygon, MultiPolygon
+    pts2=deepcopy(pts)
+    pts3=deepcopy(pts)
+    for i in range(len(pts2)):
+        x, y = proj(pts2[i][0], pts2[i][1], inverse=True)
+        pts2[i][0]=x
+        pts2[i][1]=y
+        pts3[i][0]=x*scale
+        pts3[i][1]=y*scale
+    
+    poly2=Polygon(pts2,None)
+    poly3=Polygon(pts3,None)
+    
+    center2=poly2.centroid
+    center3=poly3.centroid
+    diff_lat=(center2.x-center3.x)
+    diff_lon=(center2.y-center3.y)
+    return (diff_lat, diff_lon)
+#    diff_lat2 = pts2[0][0]-pts3[0][0]
+ #   diff_lon2 = pts2[0][1]-pts3[0][1]
+#    return (diff_lat2, diff_lon2)

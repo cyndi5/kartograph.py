@@ -33,21 +33,23 @@ class Map(object):
         me._bounding_geometry_cache = False
         me._unprojected_bounds = None
         me._projected_bounds = None
+        me._init_offset = None # the initial offset as a result of scaling
         # The **source encoding** will be used as first guess when Kartograph tries to decode
         # the meta data of shapefiles etc. We use Unicode as default source encoding.
         if not src_encoding:
             src_encoding = 'utf-8'
         me._source_encoding = src_encoding
 
-        # Construct [MapLayer](maplayer.py) instances for every layer and store references
-        # to the layers in a list and a dictionary.
+        # Construct [MapLayer](maplayer.py) instances for statelayer alone and store references
+        # to the layers in a list and a dictionary. 
+        # I wish I remember why I split it, should've commented it ...
         for layer_cfg in options['layers']:
             #print 'layer_cfg={0}\n'.format(layer_cfg)
             layer_id = layer_cfg['id']
-            if layer_id=='statelayer':
-                layer = MapLayer(layer_id, layer_cfg, me, layerCache)
-                me.layers.append(layer)
-                me.layersById[layer_id] = layer
+            #if layer_id=='statelayer':
+            layer = MapLayer(layer_id, layer_cfg, me, layerCache)
+            me.layers.append(layer)
+            me.layersById[layer_id] = layer
 
         # Initialize the projection that will be used in this map. This sounds easier than
         # it is since we need to compute lot's of stuff here.
@@ -58,15 +60,15 @@ class Map(object):
         print 'init bounds, me._projected_bounds={0}'.format(me._projected_bounds) ##, bounds_poly={0}'.format(me.bounds_poly)
         
 
-        # Load the other layers
-        for layer_cfg in options['layers']:
+        # Load the other layers; for now load 'em all above
+#        for layer_cfg in options['layers']:
             #print 'layer_cfg={0}\n'.format(layer_cfg)                          
-            layer_id = layer_cfg['id']
-            if layer_id!='statelayer':
+#            layer_id = layer_cfg['id']
+#            if layer_id!='statelayer':
                 # TODO: Change offset to match the rest of the map                    
-                layer = MapLayer(layer_id, layer_cfg, me, layerCache)
-                me.layers.append(layer)
-                me.layersById[layer_id] = layer
+#                layer = MapLayer(layer_id, layer_cfg, me, layerCache)
+#                me.layers.append(layer)
+#                me.layersById[layer_id] = layer
 
         # Set up the [view](geometry/view.py) which will transform from projected coordinates
         # (e.g. in meters) to screen coordinates in our map output.
@@ -77,8 +79,14 @@ class Map(object):
 
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected and transformed to screen coordinates.
+        print '\n'
         for layer in me.layers:
-            print "getting features for layer={0}".format(layer)
+            if "sidelayer" in layer.options:
+                layer.options["init_offset"]=me._init_offset
+                print '\tlayer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
+            else:
+                layer.options["init_offset"]=(0, 0)
+#            print "getting features for layer={0}".format(layer)
             layer.get_features()
 
         # In each layer we will join polygons.
@@ -228,26 +236,16 @@ class Map(object):
   #              # determine what features can be skipped.
                 ubbox.inflate(pad_dict=padding_dict)
 
-#                ubbox.inflate(amount=ubbox.width*padding, diff_amounts=True,
-#                     left_amount=opts['bounds']["left-padding"], 
-#                     right_amount=opts['bounds']["right-padding"], 
-#                     top_amount=opts['bounds']["top-padding"], 
-#                     bottom_amount=opts['bounds']["bottom-padding"] )
-
                 self._unprojected_bounds = ubbox
                 print 'ubbox={0}'.format(ubbox)
             else:
                 raise KartographError('no features found for calculating the map bounds')
+            self._init_offset = self._get_side_bounding_geometry()
         # If we need some extra geometry around the map bounds, we inflate
         # the bbox according to the set *padding*.
 
         # Instead of this, expand it by the size of the second geometry thing?
         bbox.inflate(pad_dict=padding_dict)
-#       bbox.inflate(amount=bbox.width*padding, diff_amounts=True,
- #                    left_amount=opts['bounds']["left-padding"], 
- #                    right_amount=opts['bounds']["right-padding"], 
- #                    top_amount=opts['bounds']["top-padding"], 
- #                    bottom_amount=opts['bounds']["bottom-padding"] )
         # At the end we convert the bounding box to a Polygon because
         # we need it for clipping tasks.
         self._projected_bounds=bbox
@@ -271,55 +269,104 @@ class Map(object):
         features = []
         data = opts['bounds']['data']
         id = data['layer']
-        id_list=[id]
-        for id in id_list:
-            #TODO: ensure this is statelayer?
-            # Check that the layer exists.
-            if id not in self.layersById:
-                raise KartographError('layer not found "%s"' % id)
-            layer = self.layersById[id]
-            
-            print 'layer={0},\tid={1}'.format(layer,id)
-            # Construct the filter function of the layer, which specifies
-            # what features should be excluded from the map completely.
-            if layer.options['filter'] is False:
-                layerFilter = lambda a: True
-            else:
-                layerFilter = lambda rec: filter_record(layer.options['filter'], rec)
+        #TODO: ensure this is statelayer?
+        # Check that the layer exists.
+        if id not in self.layersById:
+            raise KartographError('layer not found "%s"' % id)
+        layer = self.layersById[id]
+        
+        print 'layer={0},\tid={1}'.format(layer,id)
+        # Construct the filter function of the layer, which specifies
+        # what features should be excluded from the map completely.
+        if layer.options['filter'] is False:
+            layerFilter = lambda a: True
+        else:
+            layerFilter = lambda rec: filter_record(layer.options['filter'], rec)
 
-            # Construct the filter function of the boundary, which specifies
-            # what features should be excluded from the boundary calculation.
-            # For instance, you often want to exclude Alaska and Hawaii from
-            # the boundary computation of the map, although a part of Alaska
-            # might be visible in the resulting map.
-            if data['filter']:
-                boundsFilter = lambda rec: filter_record(data['filter'], rec)
-            else:
-                boundsFilter = lambda a: True
+        # Construct the filter function of the boundary, which specifies
+        # what features should be excluded from the boundary calculation.
+        # For instance, you often want to exclude Alaska and Hawaii from
+        # the boundary computation of the map, although a part of Alaska
+        # might be visible in the resulting map.
+        if data['filter']:
+            boundsFilter = lambda rec: filter_record(data['filter'], rec)
+        else:
+            boundsFilter = lambda a: True
 
-            # Combine both filters to a single function.
-            filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
-            # Load the features from the layer source (e.g. a shapefile).
+        # Combine both filters to a single function.
+        filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
+        # Load the features from the layer source (e.g. a shapefile).
 
-            print 'Getting features for id={0}'.format(id)
-            features.extend(layer.source.get_features(
+        print 'Getting features for id={0}'.format(id)
+        features.extend(layer.source.get_features(
                 filter=filter,
                 min_area=data["min-area"],
                 charset=layer.options['charset'],
-                bounding=True
-            ))
-#            print 'features={0}'.format(features)
-
-        #if verbose:
-            #print 'found %d bounding features' % len(features)
+                bounding=True)
+                        )
 
     # Omit tiny islands, if needed.
-            if layer.options['filter-islands']:
-                features = [f for f in features
-                      if f.geometry.area > layer.options['filter-islands']]
+        if layer.options['filter-islands']:
+            features = [f for f in features
+                        if f.geometry.area > layer.options['filter-islands']]
         # Store computed boundary in cache.
 #        self._bounding_geometry_cache = features
         return features
+
+    def _get_side_bounding_geometry(self):
+        """
+        ### Get side bounding geometry 
+
+        For bounds mode "*polygons*" this helper function
+        returns the offset required as a result of scaling the side layer
+        """
+        print 'map._get_side_bounding_geometry'
+#        proj = self.proj
+
+
+        opts = self.options
+        features = []
+        data = opts['bounds']['data']
+        id = data['sidelayer']
+        #TODO: ensure this is countylayer?
+        # Check that the layer exists.
+        if id not in self.layersById:
+            raise KartographError('layer not found "%s"' % id)
+        layer = self.layersById[id]
+        
+        #print 'layer={0},\tid={1}'.format(layer,id)
+        # Construct the filter function of the layer, which specifies
+        # what features should be excluded from the map completely.
+        if layer.options['filter'] is False:
+            layerFilter = lambda a: True
+        else:
+            layerFilter = lambda rec: filter_record(layer.options['filter'], rec)
+
+        # Construct the filter function of the boundary, which specifies
+        # what features should be excluded from the boundary calculation.
+        # For instance, you often want to exclude Alaska and Hawaii from
+        # the boundary computation of the map, although a part of Alaska
+        # might be visible in the resulting map.
+        if data['filter']:
+            boundsFilter = lambda rec: filter_record(data['filter'], rec)
+        else:
+            boundsFilter = lambda a: True
+
+        # Combine both filters to a single function.
+        filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
+        # Load the features from the layer source (e.g. a shapefile).
+
+        print 'Getting offset for id={0}'.format(id)
+        ret_offset=layer.source.get_init_offset(
+                filter=filter,
+                min_area=data["min-area"],
+                charset=layer.options['charset'],
+                bounding=True,
+                scale=layer.options['scale']
+                )
+                        
+
+        return ret_offset
 
     def _get_view(self):
         """

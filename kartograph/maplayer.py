@@ -42,7 +42,7 @@ class MapLayer(object):
         Returns a list of projected and filtered features of a layer.
         """
         opts = layer.map.options
-        print 'layer.options={0}'.format(layer.options)
+#        print 'layer.options={0}'.format(layer.options)
 #        print 'layer.map.options={0}'.format(layer.map.options)
         is_projected = False # should this be left?
 
@@ -79,11 +79,13 @@ class MapLayer(object):
 
             # Now we ask the layer source to generate the features that will be displayed
             # in the map.
+            print 'layer.options["init_offset"]={0}'.format(layer.options['init_offset'])
             features = layer.source.get_features(
                 filter=filter,
                 bbox=bbox,
                 ignore_holes='ignore-holes' in layer.options and layer.options['ignore-holes'],
-                charset=layer.options['charset'], offset=layer.options['offset'], scale=layer.options['scale']
+                charset=layer.options['charset'], offset=layer.options['offset'], scale=layer.options['scale'], 
+                init_offset=layer.options['init_offset']
             )
             if _verbose:
                 #print 'loaded %d features from shapefile %s' % (len(features), layer.options['src'])
@@ -104,7 +106,7 @@ class MapLayer(object):
                 features = layer.source.get_features(layer.map.proj)
                 is_projected = True
         
-        print 'len of features={0}'.format(len(features))
+#        print 'len of features={0}'.format(len(features))
         for feature in features:
             #print 'feature={0}'.format(feature)
             # If the features are not projected yet, we project them now.

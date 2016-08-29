@@ -364,6 +364,11 @@ def parse_bounds(opts):
             # raise Error('you must specify a layer for bounds mode ' + mode)
         else:
             print 'data["layer"]={0}'.format(data["layer"])
+        if "sidelayer" not in data or not is_str(data["sidelayer"]):
+            if len(opts['layers'])>1:
+                data["sidelayer"] = opts['layers'][1]['id']
+            else:
+                raise Error('No sidelayer specified, insufficient # of layers!')
         if "filter" not in data:
             data["filter"] = False
         if "attribute" not in data or not is_str(data["attribute"]):
@@ -382,7 +387,7 @@ def parse_bounds(opts):
                 raise Error('min_area must be an integer or float')
         else:
             data['min-area'] = 0
-
+        
 
 def parse_export(opts):
     if "export" not in opts:
