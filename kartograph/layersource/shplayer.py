@@ -38,21 +38,24 @@ class ShapefileLayer(LayerSource):
             prj_text = open(prj_src).read()
             srs = SpatialReference()
             wkt_ret=srs.ImportFromWkt(prj_text)
-   #         print "srs={0}".format(srs)
+ #           print "srs={0}".format(srs)
             if wkt_ret:
                 raise ValueError("Error importing PRJ information from: %s" % prj_file)
             if srs.IsProjected():
-     #           print "Groomp"
+                export_srs=srs.ExportToProj4()   
+  #           print "Groomp"
 #                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
                 self.proj = pyproj.Proj(export_srs)
             else:
-                export_srs=srs.ExportToProj4()
-    #            print 'export_srs={0}'.format(export_srs)
-                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='GRS80')
-                #self.proj = pyproj.Proj(export_srs)
+  #              print "not projected but exists"
+   #            print 'export_srs={0}'.format(export_srs)
+                self.proj = None
+#                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
+#                self.proj=pyproj.Proj(laea, lon0=-76.5893672159, lat0=38.975237
+#                self.proj = pyproj.Proj(export_srs)
         else:
             print 'choo'
-            self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
+            self.proj=pyproj.Proj(proj='utm',zone=10,ellps='GRS80')
            #   
             #self.proj = pyproj.Proj(init='epsg:26915')
 
@@ -122,10 +125,10 @@ class ShapefileLayer(LayerSource):
             if len(the_feat_name.strip())>0:
                 is_nameless=False
             if filter is None or filter(drec): 
-                the_feat_name=the_feat_name.strip('\n');
-                sq_miles_water=drec['AWATER']/(640*4046.86)
+#                the_feat_name=the_feat_name.strip('\n');
+#                sq_miles_water=drec['AWATER']/(640*4046.86)
 #                if sq_miles_water>=1:
-#                    print 'Name: {0}\t{1:.2f} sq miles'.format(the_feat_name, sq_miles_water)
+#                print 'Name: {0}\t{1:.2f} sq miles'.format(the_feat_name, sq_miles_water)
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
                 for j in range(len(self.attributes)):
@@ -205,6 +208,7 @@ class ShapefileLayer(LayerSource):
                 is_nameless=False
             if filter is None or filter(drec): 
                 the_feat_name=the_feat_name.strip('\n');
+                print 'Name: {0}'.format(the_feat_name)
                 sq_miles_water=drec['AWATER']/(640*4046.86)
 #                if sq_miles_water>=1:
 #                    print 'Name: {0}\t{1:.2f} sq miles'.format(the_feat_name, sq_miles_water)
@@ -277,6 +281,7 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
     converts a shapefile polygon to geometry.MultiPolygon
     """
    # ignore_holes=True
+    
     # from kartograph.geometry import MultiPolygon
     from shapely.geometry import Polygon, MultiPolygon
     from kartograph.geometry.utils import is_clockwise
@@ -285,6 +290,7 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
     exteriors = []
     rep_point = None
     holes = []
+    print 'shp.the_feat_name={0}'.format(shp.the_feat_name)
 #    print 'shp.represenative_points={0}'.format(shp.representative_point())
     for j in range(len(parts) - 1):
         pts = shp.points[parts[j]:parts[j + 1]]
@@ -293,14 +299,11 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
             for k in range(len(pts)):
                 pts[k] = pts[k][:2]
         if proj and shp.alreadyProj is False:
-#            print 'BOO: shp.name={0}'.format(shp.name)
-#            temp_poly=Polygon(pts,None)
-#            rep_point=temp_poly.representative_point()
             project_coords(pts, proj, offset,scale, rep_point=rep_point, init_offset=init_offset)
             if shp.bounding:
                 shp.alreadyProj=True
- #       elif proj:
- #           print 'MOO: shp.name={0}'.format(shp.name)
+        elif shp.alreadyProj is False:
+            offset_coords(pts, offset,scale, init_offset=init_offset)
 
         cw = is_clockwise(pts)
         if cw:
@@ -308,7 +311,10 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
         else:
             holes.append(pts)
     if ignore_holes:
+        print 'ignoring holes'
         holes = None
+    if len(holes) > 0:
+        print '\tThere are {0} holes'.format(len(holes))
     if len(exteriors) == 1:
  #       print 'Single polygon, {0}'.format(shp.the_feat_name)
         poly = Polygon(exteriors[0], holes)
@@ -388,12 +394,22 @@ def project_coords(pts, proj, offset, scale, rep_point=None, init_offset=(0,0)):
         pts[i][0] = x*scale+init_offset[0]+offset['x']
         pts[i][1] = y*scale+init_offset[1]+offset['y']
 
+def offset_coords(pts, offset, scale, init_offset=(0,0)):
+    from shapely.geometry import Polygon, MultiPolygon
+    for i in range(len(pts)):
+        x, y = pts[i][0], pts[i][1]
+        pts[i][0] = x*scale+init_offset[0]+offset['x']
+        pts[i][1] = y*scale+init_offset[1]+offset['y']
+
 def get_scale_offset(pts, proj,  scale):
     from shapely.geometry import Polygon, MultiPolygon
     pts2=deepcopy(pts)
     pts3=deepcopy(pts)
     for i in range(len(pts2)):
-        x, y = proj(pts2[i][0], pts2[i][1], inverse=True)
+        if proj:
+            x, y = proj(pts2[i][0], pts2[i][1], inverse=True)
+        else:
+            x, y = pts2[i][0], pts2[i][1]
         pts2[i][0]=x
         pts2[i][1]=y
         pts3[i][0]=x*scale

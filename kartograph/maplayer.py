@@ -35,7 +35,6 @@ class MapLayer(object):
         # Instantiate the layer source which will generate features from the source
         # geo data such as shapefiles or virtual sources such as graticule lines.
         self.source = handle_layer_source(self.options, self.cache)
-
     def get_features(layer, filter=False, min_area=0):
         """
         ### get_features()
@@ -49,6 +48,10 @@ class MapLayer(object):
         # Let's see if theres a better bounding box than this..
         bbox = [-180, -90, 180, 90]
 
+#        if layer.map.proj:
+#            layer.source.proj = layer.map.proj # TODO: Remove?
+
+
         # Use the clipping mode defined in the map configuration
         if opts['bounds']['mode'] == "bbox":
             bbox = opts['bounds']['data']
@@ -58,7 +61,7 @@ class MapLayer(object):
             # will use the actual bounding geometry to compute the bounding box
             if opts['bounds']['crop'] == "auto":
                 if layer.map._unprojected_bounds:
-                    print 'computing inflate stuff'
+#                    print 'computing inflate stuff'
                     bbox = layer.map._unprojected_bounds
                     bbox.inflate(inflate=2,pad_dict = opts['bounds']['padding-dict'])
                 elif _verbose:
@@ -79,7 +82,7 @@ class MapLayer(object):
 
             # Now we ask the layer source to generate the features that will be displayed
             # in the map.
-            print 'layer.options["init_offset"]={0}'.format(layer.options['init_offset'])
+#            print 'layer.options["init_offset"]={0}'.format(layer.options['init_offset'])
             features = layer.source.get_features(
                 filter=filter,
                 bbox=bbox,
@@ -113,12 +116,11 @@ class MapLayer(object):
             if not is_projected:
                 feature.project(layer.map.proj)
             else:
-              feature.project(layer.map.proj)
+                feature.project(layer.map.proj)
   
           # Transform features to view coordinates.
             feature.project_view(layer.map.view)
-#        if layer.id=="countylayer":
-#            print 'feature.geometry={0}'.format(feature.geometry)
+#            print 'feature.geometry.bounds={0}'.format(feature.geom.bounds)
         # Remove features that don't intersect our clipping polygon
 #        if layer.map.view_poly:
 #            features = [feature for feature in features

@@ -57,18 +57,10 @@ class Map(object):
         me.proj = me._init_projection()
         # Compute the bounding geometry for the map.
         me.bounds_poly = me._init_bounds()
-        print 'init bounds, me._projected_bounds={0}'.format(me._projected_bounds) ##, bounds_poly={0}'.format(me.bounds_poly)
+        print 'init bounds, me._projected_bounds={0}'.format(me._projected_bounds)
         
 
         # Load the other layers; for now load 'em all above
-#        for layer_cfg in options['layers']:
-            #print 'layer_cfg={0}\n'.format(layer_cfg)                          
-#            layer_id = layer_cfg['id']
-#            if layer_id!='statelayer':
-                # TODO: Change offset to match the rest of the map                    
-#                layer = MapLayer(layer_id, layer_cfg, me, layerCache)
-#                me.layers.append(layer)
-#                me.layersById[layer_id] = layer
 
         # Set up the [view](geometry/view.py) which will transform from projected coordinates
         # (e.g. in meters) to screen coordinates in our map output.
@@ -79,12 +71,12 @@ class Map(object):
 
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected and transformed to screen coordinates.
-        print '\n'
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=me._init_offset
-                print '\tlayer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
+                print '\n\n\tlayer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
             else:
+                print "\n\nNo sidelayer"
                 layer.options["init_offset"]=(0, 0)
 #            print "getting features for layer={0}".format(layer)
             layer.get_features()
@@ -123,6 +115,7 @@ class Map(object):
         # Load the projection class, if the id is known.
         if opts['proj']['id'] in projections:
             projC = projections[opts['proj']['id']]
+            print 'projC={0}'.format(projC)
         else:
             raise KartographError('projection unknown %s' % opts['proj']['id'])
         # Populate a dictionary of projection properties that
@@ -132,6 +125,7 @@ class Map(object):
         for prop in opts['proj']:
             if prop != "id":
                 p_opts[prop] = opts['proj'][prop]
+        print "p_opts={0}".format(p_opts)
         return projC(**p_opts)
 
     def __get_map_center(self):
@@ -190,6 +184,7 @@ class Map(object):
 
         opts = self.options
         proj = self.proj
+        print '  proj={0}'.format(proj)
         mode = opts['bounds']['mode'][:]
         data = opts['bounds']['data']
         padding_dict = opts['bounds']['padding-dict']
@@ -331,7 +326,9 @@ class Map(object):
         #TODO: ensure this is countylayer?
         # Check that the layer exists.
         if id not in self.layersById:
-            raise KartographError('layer not found "%s"' % id)
+            print 'sidelayer not found'
+            return (0,0)
+#            raise KartographError('layer not found "%s"' % id)
         layer = self.layersById[id]
         
         #print 'layer={0},\tid={1}'.format(layer,id)

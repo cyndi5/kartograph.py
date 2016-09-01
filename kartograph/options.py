@@ -367,8 +367,15 @@ def parse_bounds(opts):
         if "sidelayer" not in data or not is_str(data["sidelayer"]):
             if len(opts['layers'])>1:
                 data["sidelayer"] = opts['layers'][1]['id']
+                opts['layers'][1]["sidelayer"]=True
             else:
-                raise Error('No sidelayer specified, insufficient # of layers!')
+#                data["sidelayer"] = None
+                #raise Error('No sidelayer specified, insufficient # of layers!')
+                pass
+        else:
+            for i in opts['layers']:
+                if i['id']==data["sidelayer"]:
+                    i['sidelayer']=True
         if "filter" not in data:
             data["filter"] = False
         if "attribute" not in data or not is_str(data["attribute"]):
