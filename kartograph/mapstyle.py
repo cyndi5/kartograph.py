@@ -82,6 +82,11 @@ def _checkRule(layer_id, layer_classes, fprops, rule):
                             if key not in fprops:
                                 match = False
                             else:
+                                # Fixed to typecast integers so comparisons work
+                                if type(val) is int:
+                                    fprops[key]=int(fprops[key])
+                                elif type(val) is float:
+                                    fprops[key]=float(fprops[key])
                                 if comp == '=':
                                     match = match and fprops[key] == val
                                 elif comp == '~=':
@@ -96,7 +101,10 @@ def _checkRule(layer_id, layer_classes, fprops, rule):
                                     # Matches if the attribute ends with the value
                                     match = match and fprops[key][-len(val):] == val
                                 elif comp == '>':
+#                                    print 'match={0}'.format(match)
                                     match = match and fprops[key] > val
+ #                                   print 'types: fprops[key]={0}, val={1}'.format(type(fprops[key]), type(val))
+  #                                  print 'fprops[key]={0}, val={1}, match={2}\n'.format(fprops[key], val, match)
                                 elif comp == '>=':
                                     match = match and fprops[key] >= val
                                 elif comp == '<':
