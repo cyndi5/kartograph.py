@@ -27,6 +27,7 @@ class ShapefileLayer(LayerSource):
         self.shpSrc = src
         self.sr = shapefile.Reader(src)
         self.recs = []
+        self.intersect_tol=.1
         self.shapes = {}
         self.load_records()
         self.proj = None
@@ -91,7 +92,7 @@ class ShapefileLayer(LayerSource):
         if i in self.shapes:
             self.shapes.pop(i)
 
-    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0)):
+    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0), bounding_geom=None):
         """
         ### Get features
         """
@@ -99,7 +100,9 @@ class ShapefileLayer(LayerSource):
         self.init_offset=init_offset
         self.offset=offset
         self.scale=scale
-        print 'get_features, self.offset={0}'.format(self.offset)
+        #print 'get_features, self.offset={0}'.format(self.offset)
+ #       print 'self.recs={0}\nself.attributes={1}'.format(self.recs,self.attributes)
+#        print 'type(self)={0}'.format(type(self))
         # We will try these encodings..
         known_encodings = ['utf-8', 'latin-1', 'iso-8859-2', 'iso-8859-15']
         try_encodings = [charset]
@@ -118,6 +121,7 @@ class ShapefileLayer(LayerSource):
             # For each record that is not filtered..
             is_nameless=True
             the_feat_name=''
+#            print drec
             if 'NAME' in drec:
                 the_feat_name=drec['NAME']
             elif 'FULLNAME' in drec:
@@ -125,6 +129,7 @@ class ShapefileLayer(LayerSource):
             if len(the_feat_name.strip())>0:
                 is_nameless=False
             if filter is None or filter(drec): 
+
 #                the_feat_name=the_feat_name.strip('\n');
 #                sq_miles_water=drec['AWATER']/(640*4046.86)
 #                if sq_miles_water>=1:
@@ -160,7 +165,19 @@ class ShapefileLayer(LayerSource):
                     ignored += 1
                     self.forget_shape(i)
                     continue
+                elif bounding_geom is not None:
+#                    print 'type(bounding_geom)={0}'.format(type(bounding_geom))
+                    x=bounding_geom.intersection(geom)
+                    if x.area<self.intersect_tol*geom.area:
+#                        print 'Name: {0} does not intersect'.format(shp.the_feat_name)
 
+ #                       print 'bounding_geom={0}, geom={1}'.format(bounding_geom.bounds, geom.bounds)
+                        ignored += 1
+                        self.forget_shape(i)
+                        continue
+                    else:
+                        print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec['GEOID'])
+                                                      
                     # Finally we construct the map feature and append it to the
                     # result list
                 feature = create_feature(geom, props)
@@ -290,7 +307,7 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
     exteriors = []
     rep_point = None
     holes = []
-    print 'shp.the_feat_name={0}'.format(shp.the_feat_name)
+#    print 'shp.the_feat_name={0}'.format(shp.the_feat_name)
 #    print 'shp.represenative_points={0}'.format(shp.representative_point())
     for j in range(len(parts) - 1):
         pts = shp.points[parts[j]:parts[j + 1]]
@@ -301,10 +318,13 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
         if proj and shp.alreadyProj is False:
             project_coords(pts, proj, offset,scale, rep_point=rep_point, init_offset=init_offset)
             if shp.bounding:
+#                print 'Already proj, proj exists'
                 shp.alreadyProj=True
         elif shp.alreadyProj is False:
             offset_coords(pts, offset,scale, init_offset=init_offset)
-
+            if shp.bounding:
+                shp.alreadyProj=True
+ #           print 'Already proj, no proj exists'
         cw = is_clockwise(pts)
         if cw:
             exteriors.append(pts)

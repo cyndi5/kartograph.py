@@ -45,6 +45,7 @@ class MapLayer(object):
 #        print 'layer.map.options={0}'.format(layer.map.options)
         is_projected = False # should this be left?
 
+        bounding_geom=None
         # Let's see if theres a better bounding box than this..
         bbox = [-180, -90, 180, 90]
 
@@ -71,6 +72,9 @@ class MapLayer(object):
                 # otherwise it will use the user defined bbox in the format
                 # [minLon, minLat, maxLon, maxLat]
                 bbox = opts['bounds']['crop']
+            if "sidelayer" in layer.options and layer.map._side_bounding_geometry is not None:
+                # We are cropping based on whether it's in the sidelayer
+                bounding_geom=layer.map._side_bounding_geometry
 
         # If the layer has the "src" property, it is a **regular map layer** source, which
         # means that there's an exernal file that we load the geometry and meta data from.
@@ -88,7 +92,8 @@ class MapLayer(object):
                 bbox=bbox,
                 ignore_holes='ignore-holes' in layer.options and layer.options['ignore-holes'],
                 charset=layer.options['charset'], offset=layer.options['offset'], scale=layer.options['scale'], 
-                init_offset=layer.options['init_offset']
+                init_offset=layer.options['init_offset'],
+                bounding_geom=bounding_geom
             )
             if _verbose:
                 #print 'loaded %d features from shapefile %s' % (len(features), layer.options['src'])

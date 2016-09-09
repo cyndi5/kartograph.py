@@ -4,6 +4,7 @@ from maplayer import MapLayer
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
 
+from copy import deepcopy
 from geometry import BBox, View
 from proj import projections
 from filter import filter_record
@@ -32,6 +33,7 @@ class Map(object):
         # We will cache the bounding geometry since we need it twice, eventually.
         me._bounding_geometry_cache = False
         me._unprojected_bounds = None
+        me._side_bounding_geometry = None
         me._projected_bounds = None
         me._init_offset = None # the initial offset as a result of scaling
         # The **source encoding** will be used as first guess when Kartograph tries to decode
@@ -80,7 +82,7 @@ class Map(object):
                 layer.options["init_offset"]=(0, 0)
 #            print "getting features for layer={0}".format(layer)
             layer.get_features()
-
+            print "done getting features for layer={0}".format(layer.id)
         # In each layer we will join polygons.
         me._join_features()
         # Eventually we crop geometries to the map bounding rectangle.
@@ -94,6 +96,7 @@ class Map(object):
         # Or subtract one layer from another (or more), for instance to cut out lakes
         # from political boundaries.
         me._subtract_layers()
+    
 
     def _init_projection(self):
         """
@@ -229,15 +232,26 @@ class Map(object):
                     bbox.join(fbbox)
   #              # Save the unprojected bounding box for later to
   #              # determine what features can be skipped.
-                ubbox.inflate(pad_dict=padding_dict)
-
-                self._unprojected_bounds = ubbox
                 print 'ubbox={0}'.format(ubbox)
             else:
                 raise KartographError('no features found for calculating the map bounds')
-            self._init_offset = self._get_side_bounding_geometry()
+            self._init_offset = self._get_side_offset()
+            side_features = self._get_side_bounding_geometry()
+            if len(side_features) > 0:
+                self._side_bounding_geometry = side_features[0].geom
+                ubbox.join(geom_to_bbox(side_features[0].geometry))
+                side2=deepcopy(side_features[0])
+                side2.project(proj)
+                fbbox=geom_to_bbox(side2.geometry, data["min-area"])
+                bbox.join(fbbox)
+            else:
+                print "Cannot find side features"
         # If we need some extra geometry around the map bounds, we inflate
         # the bbox according to the set *padding*.
+                           
+            ubbox.inflate(pad_dict=padding_dict)
+            self._unprojected_bounds = ubbox
+
 
         # Instead of this, expand it by the size of the second geometry thing?
         bbox.inflate(pad_dict=padding_dict)
@@ -315,7 +329,64 @@ class Map(object):
         For bounds mode "*polygons*" this helper function
         returns the offset required as a result of scaling the side layer
         """
-        print 'map._get_side_bounding_geometry'
+        print 'map._get_side_offset'
+#        proj = self.proj
+
+
+        opts = self.options
+        features = []
+        data = opts['bounds']['data']
+        id = data['sidelayer']
+        #TODO: ensure this is countylayer?
+        # Check that the layer exists.
+        if id not in self.layersById:
+            print 'sidelayer not found'
+            return (0,0)
+#            raise KartographError('layer not found "%s"' % id)
+        layer = self.layersById[id]
+        
+        #print 'layer={0},\tid={1}'.format(layer,id)
+        # Construct the filter function of the layer, which specifies
+        # what features should be excluded from the map completely.
+        if layer.options['filter'] is False:
+            layerFilter = lambda a: True
+        else:
+            layerFilter = lambda rec: filter_record(layer.options['filter'], rec)
+
+        # Construct the filter function of the boundary, which specifies
+        # what features should be excluded from the boundary calculation.
+        # For instance, you often want to exclude Alaska and Hawaii from
+        # the boundary computation of the map, although a part of Alaska
+        # might be visible in the resulting map.
+        if data['filter']:
+            boundsFilter = lambda rec: filter_record(data['filter'], rec)
+        else:
+            boundsFilter = lambda a: True
+
+        # Combine both filters to a single function.
+        filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
+        # Load the features from the layer source (e.g. a shapefile).
+
+        features.extend(layer.source.get_features(
+                filter=filter,
+                min_area=data["min-area"],
+                charset=layer.options['charset'],
+                offset=layer.options['offset'],
+                init_offset=self._init_offset,
+                scale=layer.options['scale'],
+                bounding=True)
+                        )
+        print 'Done getting side bounding'
+        return features
+
+    def _get_side_offset(self):
+        """
+        ### Get side offset
+
+        For bounds mode "*polygons*" this helper function
+        returns the offset required as a result of scaling the side layer
+        """
+        print 'map._get_side_offset'
 #        proj = self.proj
 
 
