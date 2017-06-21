@@ -64,7 +64,7 @@ class MapLayer(object):
                 if layer.map._unprojected_bounds:
 #                    print 'computing inflate stuff'
                     bbox = layer.map._unprojected_bounds
-                    bbox.inflate(inflate=2,pad_dict = opts['bounds']['padding-dict'])
+                    bbox.inflate(inflate=1,pad_dict = opts['bounds']['padding-dict'])
                 elif _verbose:
                     pass
                     #print 'could not compute bounding box for auto-cropping'

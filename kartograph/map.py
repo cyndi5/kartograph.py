@@ -193,7 +193,7 @@ class Map(object):
         padding_dict = opts['bounds']['padding-dict']
         print 'init_bounds: mode={0}, data={1}'.format(mode, data)
         if 'padding' not in opts['bounds']:
-            padding = 2. # CHANGED from 0
+            padding = 0. # CHANGED from 0
         else:
             padding = opts['bounds']['padding']
 
@@ -268,7 +268,7 @@ class Map(object):
         be cropped to.
         """
         print 'map._get_bounding_geometry'
-#        proj = self.proj
+    #    proj = self.proj
 
         # Use the cached geometry, if available.
         if self._bounding_geometry_cache:
@@ -311,6 +311,9 @@ class Map(object):
                 filter=filter,
                 min_area=data["min-area"],
                 charset=layer.options['charset'],
+              #  offset=layer.options['offset'],
+              #  init_offset=self._init_offset,
+             #   scale=layer.options['scale'],
                 bounding=True)
                         )
 
