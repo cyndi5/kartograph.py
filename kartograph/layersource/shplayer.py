@@ -189,7 +189,7 @@ class ShapefileLayer(LayerSource):
                         self.forget_shape(i)
                         continue
                     else:
-                        print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec['GEOID'])
+                        print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec)
  
  
                    

@@ -31,6 +31,7 @@ class MapStyle(object):
                         else:
                             prop += str(val.value)
                     attrs[decl.name] = prop
+                    print 'layer_id={2}, attrs[{0}]={1}'.format(decl.name,attrs[decl.name], layer_id)
         return attrs
 
     def applyStyle(self, node, layer_id, layer_classes=[], fprops=dict()):
@@ -88,6 +89,7 @@ def _checkRule(layer_id, layer_classes, fprops, rule):
                                 elif type(val) is float:
                                     fprops[key]=float(fprops[key])
                                 if comp == '=':
+                                   # print 'fprops[{0}]={1},val={2}, works={3}'.format(key,fprops[key],val, match and fprops[key] == val)
                                     match = match and fprops[key] == val
                                 elif comp == '~=':
                                     vals = val.split(' ')
