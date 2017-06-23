@@ -92,6 +92,7 @@ class ShapefileLayer(LayerSource):
         if i in self.shapes:
             self.shapes.pop(i)
 
+            
     def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0), bounding_geom=None):
         """
         ### Get features
@@ -128,12 +129,16 @@ class ShapefileLayer(LayerSource):
                 the_feat_name=drec['FULLNAME']
             if len(the_feat_name.strip())>0:
                 is_nameless=False
-            if filter is None or filter(drec): 
-
-#                the_feat_name=the_feat_name.strip('\n');
-#                sq_miles_water=drec['AWATER']/(640*4046.86)
-#                if sq_miles_water>=1:
-#                print 'Name: {0}\t{1:.2f} sq miles'.format(the_feat_name, sq_miles_water)
+            shp1=self.get_shape(i)
+            shp1.bounding=bounding
+            shp1.the_feat_name=the_feat_name
+            geom_check = shape2geometry(shp1, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
+            if geom_check is None:
+                ignored += 1
+                continue
+            intersect_geom=bounding_geom.intersection(geom_check)
+            # Check for sufficient intersection to add places automatically
+            if filter is None or filter(drec) or intersect_geom.area>=self.intersect_tol*geom_check.area: 
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
                 for j in range(len(self.attributes)):
