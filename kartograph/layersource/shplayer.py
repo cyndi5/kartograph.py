@@ -129,16 +129,26 @@ class ShapefileLayer(LayerSource):
                 the_feat_name=drec['FULLNAME']
             if len(the_feat_name.strip())>0:
                 is_nameless=False
-            shp1=self.get_shape(i)
-            shp1.bounding=bounding
-            shp1.the_feat_name=the_feat_name
-            geom_check = shape2geometry(shp1, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
-            if geom_check is None:
-                ignored += 1
-                continue
-            intersect_geom=bounding_geom.intersection(geom_check)
+            desired_geom=False
+            drec['DESIRED_GEOM']=False
+    
+            if bounding_geom is not None:
+                # Check if we want it to intersect
+                shp=self.get_shape(i)
+                shp.bounding=bounding
+                shp.the_feat_name=the_feat_name
+                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
+                if geom is None:
+                    ignored += 1
+                    continue
+                intersect_geom=bounding_geom.intersection(geom)
+                if intersect_geom.area>=self.intersect_tol*geom.area:
+                    desired_geom=True
+                    #print 'Found intersecting feature {0}'.format(the_feat_name)
             # Check for sufficient intersection to add places automatically
-            if filter is None or filter(drec) or intersect_geom.area>=self.intersect_tol*geom_check.area: 
+                drec['DESIRED_GEOM']=True
+            if filter is None or filter(drec):
+                #print '\tIn for the_feat_name {0}'.format(the_feat_name)
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
                 for j in range(len(self.attributes)):
@@ -160,31 +170,49 @@ class ShapefileLayer(LayerSource):
                     props[self.attributes[j]] = val
 
 # Read the shape from the shapefile (can take some time..)..
-                shp = self.get_shape(i)
-                shp.bounding=bounding
-                shp.the_feat_name=the_feat_name
+                #shp = self.get_shape(i)
+                #shp.bounding=bounding
+                #shp.the_feat_name=the_feat_name
                # ..and convert the raw shape into a shapely.geometry
 #                print 'self.init_offset={0}'.format(self.init_offset)
-                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
-                if geom is None:
-                    ignored += 1
-                    self.forget_shape(i)
-                    continue
-                elif bounding_geom is not None:
+                #geom = shape2geometry(shp1, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
+                #if geom is None:
+                #    ignored += 1
+                #    self.forget_shape(i)
+                #    continue
+                if bounding_geom is not None:
 #                    print 'type(bounding_geom)={0}'.format(type(bounding_geom))
                     x=bounding_geom.intersection(geom)
                     if x.area<self.intersect_tol*geom.area:
-#                        print 'Name: {0} does not intersect'.format(shp.the_feat_name)
-
- #                       print 'bounding_geom={0}, geom={1}'.format(bounding_geom.bounds, geom.bounds)
+                        #print 'Name: {0} does not intersect'.format(shp.the_feat_name)
                         ignored += 1
                         self.forget_shape(i)
                         continue
                     else:
                         print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec['GEOID'])
-                                                      
+ 
+ 
+                   
+                else:
+                    # If we didn't already set the shape and geom above, we set it here instead
+                    shp = self.get_shape(i)
+                    shp.bounding=bounding
+                    shp.the_feat_name=the_feat_name
+                # ..and convert the raw shape into a shapely.geometry
+#                print 'self.init_offset={0}'.format(self.init_offset)
+                    geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
+                    if geom is None:
+                        ignored += 1
+                        continue
+                    
+               # if not desired_geom:
+                #    ignored += 1
+                 #   self.forget_shape(i)
+                 #   continue
+
                     # Finally we construct the map feature and append it to the
                     # result list
+                #print 'Constructing feature {0}'.format(drec)
                 feature = create_feature(geom, props)
                 self.feature = feature
                 res.append(feature)
@@ -338,8 +366,8 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
     if ignore_holes:
         print 'ignoring holes'
         holes = None
-    if len(holes) > 0:
-        print '\tThere are {0} holes'.format(len(holes))
+#    if len(holes) > 0:
+#        print '\tThere are {0} holes'.format(len(holes))
     if len(exteriors) == 1:
  #       print 'Single polygon, {0}'.format(shp.the_feat_name)
         poly = Polygon(exteriors[0], holes)

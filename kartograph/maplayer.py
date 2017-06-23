@@ -41,7 +41,7 @@ class MapLayer(object):
         Returns a list of projected and filtered features of a layer.
         """
         opts = layer.map.options
-#        print 'layer.options={0}'.format(layer.options)
+        print 'Getting features for layer.id={0}'.format(layer.id)
 #        print 'layer.map.options={0}'.format(layer.map.options)
         is_projected = False # should this be left?
 

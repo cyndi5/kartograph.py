@@ -311,9 +311,6 @@ class Map(object):
                 filter=filter,
                 min_area=data["min-area"],
                 charset=layer.options['charset'],
-              #  offset=layer.options['offset'],
-              #  init_offset=self._init_offset,
-             #   scale=layer.options['scale'],
                 bounding=True)
                         )
 
@@ -383,12 +380,7 @@ class Map(object):
         return features
 
     def _get_side_offset(self):
-        """
-        ### Get side offset
-
-        For bounds mode "*polygons*" this helper function
-        returns the offset required as a result of scaling the side layer
-        """
+  
         print 'map._get_side_offset'
 #        proj = self.proj
 
