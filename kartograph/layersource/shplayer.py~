@@ -27,7 +27,6 @@ class ShapefileLayer(LayerSource):
         self.shpSrc = src
         self.sr = shapefile.Reader(src)
         self.recs = []
-        self.intersect_tol=.1
         self.shapes = {}
         self.load_records()
         self.proj = None
@@ -92,7 +91,6 @@ class ShapefileLayer(LayerSource):
         if i in self.shapes:
             self.shapes.pop(i)
 
-            
     def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0), bounding_geom=None):
         """
         ### Get features
@@ -129,26 +127,11 @@ class ShapefileLayer(LayerSource):
                 the_feat_name=drec['FULLNAME']
             if len(the_feat_name.strip())>0:
                 is_nameless=False
-            desired_geom=False
-            drec['DESIRED_GEOM']=False
-    
-            if bounding_geom is not None:
-                # Check if we want it to intersect
-                shp=self.get_shape(i)
-                shp.bounding=bounding
-                shp.the_feat_name=the_feat_name
-                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
-                if geom is None:
-                    ignored += 1
-                    continue
-                intersect_geom=bounding_geom.intersection(geom)
-                if intersect_geom.area>=self.intersect_tol*geom.area:
-                    desired_geom=True
-                    #print 'Found intersecting feature {0}'.format(the_feat_name)
-            # Check for sufficient intersection to add places automatically
-                drec['DESIRED_GEOM']=True
-            if filter is None or filter(drec):
-                #print '\tIn for the_feat_name {0}'.format(the_feat_name)
+            if filter is None or filter(drec): 
+#                the_feat_name=the_feat_name.strip('\n');
+#                sq_miles_water=drec['AWATER']/(640*4046.86)
+#                if sq_miles_water>=1:
+#                print 'Name: {0}\t{1:.2f} sq miles'.format(the_feat_name, sq_miles_water)
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
                 for j in range(len(self.attributes)):
@@ -169,42 +152,32 @@ class ShapefileLayer(LayerSource):
                         val = val.strip()
                     props[self.attributes[j]] = val
 
-
-                if bounding_geom is not None:
+# Read the shape from the shapefile (can take some time..)..
+                shp = self.get_shape(i)
+                shp.bounding=bounding
+                shp.the_feat_name=the_feat_name
+               # ..and convert the raw shape into a shapely.geometry
+#                print 'self.init_offset={0}'.format(self.init_offset)
+                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
+                if geom is None:
+                    ignored += 1
+                    self.forget_shape(i)
+                    continue
+                elif bounding_geom is not None:
 #                    print 'type(bounding_geom)={0}'.format(type(bounding_geom))
-                    x=bounding_geom.intersection(geom)
-                    if x.area<self.intersect_tol*geom.area:
-                        #print 'Name: {0} does not intersect'.format(shp.the_feat_name)
+                    if not bounding_geom.intersects(geom):
+                        print 'Name: {0} does not intersect'.format(shp.the_feat_name)
+
+                        print 'bounding_geom={0}, geom={1}'.format(bounding_geom.bounds, geom.bounds)
                         ignored += 1
                         self.forget_shape(i)
                         continue
                     else:
-                        print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec)
- 
- 
-                   
-                else:
-                    # If we didn't already set the shape and geom above, we set it here instead
-                    shp = self.get_shape(i)
-                    shp.bounding=bounding
-                    shp.the_feat_name=the_feat_name
-                # ..and convert the raw shape into a shapely.geometry
-#                print 'self.init_offset={0}'.format(self.init_offset)
-                    geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
-                    if geom is None:
-                        ignored += 1
-                        continue
-                    
-               # if not desired_geom:
-                #    ignored += 1
-                 #   self.forget_shape(i)
-                 #   continue
-
+                        print 'Name: {0} intersects'.format(shp.the_feat_name)
+                                                      
                     # Finally we construct the map feature and append it to the
                     # result list
-                #print 'Constructing feature {0}'.format(drec['NAME'])
                 feature = create_feature(geom, props)
-                #print 'Constructing feature {0}'.format(drec['NAME'])
                 self.feature = feature
                 res.append(feature)
         if bbox is not None and ignored > 0 and verbose:
@@ -213,14 +186,13 @@ class ShapefileLayer(LayerSource):
 #        print 'res={0}'.format(res)
         return res
 
-    # get the (not really initial offset as a tuple for scaling this thing
-    def get_scaling_offset(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1):
+    # get the initial offset as a tuple for scaling this thing
+    def get_init_offset(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1):
         """
         ### Get features
         """
         result = None
         self.offset=offset
-        print 'self.offset={0}'.format(self.offset)
         self.scale=scale
         
         print 'get_features, self.offset={0}'.format(self.offset)
@@ -341,19 +313,12 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
             for k in range(len(pts)):
                 pts[k] = pts[k][:2]
         if proj and shp.alreadyProj is False:
-            print 'init_offset={0}'.format(init_offset)
             project_coords(pts, proj, offset,scale, rep_point=rep_point, init_offset=init_offset)
             if shp.bounding:
-#                print 'Already proj, proj exists'
                 shp.alreadyProj=True
         elif shp.alreadyProj is False:
-        #    print 'alreadyProj is false, proj is true, {0}'.format(offset)
             offset_coords(pts, offset,scale, init_offset=init_offset)
-            if shp.bounding:
-                shp.alreadyProj=True
-            #else:
-             #   print 'shp.bounding={0}'.format(shp.bounding)
- #           print 'Already proj, no proj exists'
+
         cw = is_clockwise(pts)
         if cw:
             exteriors.append(pts)
@@ -362,8 +327,8 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
     if ignore_holes:
         print 'ignoring holes'
         holes = None
-#    if len(holes) > 0:
-#        print '\tThere are {0} holes'.format(len(holes))
+    if len(holes) > 0:
+        print '\tThere are {0} holes'.format(len(holes))
     if len(exteriors) == 1:
  #       print 'Single polygon, {0}'.format(shp.the_feat_name)
         poly = Polygon(exteriors[0], holes)
@@ -445,13 +410,11 @@ def project_coords(pts, proj, offset, scale, rep_point=None, init_offset=(0,0)):
 
 def offset_coords(pts, offset, scale, init_offset=(0,0)):
     from shapely.geometry import Polygon, MultiPolygon
-   # print 'in offset init_offset={0},offset={1}'.format(init_offset, offset)
-   # pts2=deepcopy(pts)
     for i in range(len(pts)):
         x, y = pts[i][0], pts[i][1]
-        pts[i][0] = x#*scale+init_offset[0]+offset['x']
-        pts[i][1] = y#*scale+init_offset[1]+offset['y']
-    #pts=deepcopy(pts2)
+        pts[i][0] = x*scale+init_offset[0]+offset['x']
+        pts[i][1] = y*scale+init_offset[1]+offset['y']
+
 def get_scale_offset(pts, proj,  scale):
     from shapely.geometry import Polygon, MultiPolygon
     pts2=deepcopy(pts)

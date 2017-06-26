@@ -1,6 +1,7 @@
 
 from layersource import handle_layer_source
 from filter import filter_record
+from geometry import BBox, create_feature
 
 
 _verbose = False
@@ -114,10 +115,15 @@ class MapLayer(object):
                 features = layer.source.get_features(layer.map.proj)
                 is_projected = True
         
-#        print 'len of features={0}'.format(len(features))
+        print 'Finished with shapelayer call'#.format(len(features))
+
+        # Add bounding_geom to features, see what happens */
+       # if bounding_geom is not None:
+        #    feature = create_feature(bounding_geom, {})
+         #   features.append(feature)
         for feature in features:
             #print 'feature={0}'.format(feature)
-            # If the features are not projected yet, we project them now.
+            # If the features are not projected yet, we project them now (either way it sesms)
             if not is_projected:
                 feature.project(layer.map.proj)
             else:
@@ -125,7 +131,9 @@ class MapLayer(object):
   
           # Transform features to view coordinates.
             feature.project_view(layer.map.view)
-#            print 'feature.geometry.bounds={0}'.format(feature.geom.bounds)
+
+            #It's after this point that we want to adjust the features with scaling and such
+
         # Remove features that don't intersect our clipping polygon
 #        if layer.map.view_poly:
 #            features = [feature for feature in features

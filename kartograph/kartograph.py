@@ -26,7 +26,9 @@ class Kartograph(object):
         self.layerCache = {}
         pass
 
-    def generate(self, opts, outfile=None, format='svg', preview=None, stylesheet=None):
+    # new render field to provide an option for rendering wiki places without
+    # destroying rest of code
+    def generate(self, opts, outfile=None, format='svg', preview=None, stylesheet=None, render_format='wikiplace'):
         """
         Generates a the map and renders it using the specified output format.
         """
@@ -52,7 +54,7 @@ class Kartograph(object):
             style = MapStyle(stylesheet)
             # Create a renderer instance and render the map.
             renderer = _known_renderer[format](_map)
-            renderer.render(style, opts['export']['prettyprint'])
+            renderer.render(style, opts['export']['prettyprint'], render_format)
 
             if preview:
                 if 'KARTOGRAPH_PREVIEW' in os.environ:

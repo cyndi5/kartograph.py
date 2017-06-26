@@ -1,8 +1,9 @@
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.base import BaseGeometry
 from maplayer import MapLayer
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
+from geometry.feature import MultiPolygonFeature
 
 from copy import deepcopy
 from geometry import BBox, View
@@ -35,6 +36,8 @@ class Map(object):
         me._unprojected_bounds = None
         me._side_bounding_geometry = None
         me._projected_bounds = None
+        me._side_offset = {'x':0,'y':0}
+        me._next_side_offset={'x':0,'y':0}
         me._init_offset = None # the initial offset as a result of scaling
         # The **source encoding** will be used as first guess when Kartograph tries to decode
         # the meta data of shapefiles etc. We use Unicode as default source encoding.
@@ -59,9 +62,8 @@ class Map(object):
         me.proj = me._init_projection()
         # Compute the bounding geometry for the map.
         me.bounds_poly = me._init_bounds()
-        print 'init bounds, me._projected_bounds={0}'.format(me._projected_bounds)
-        
-
+        print '**init bounds, me._projected_bounds={0}, me.bounds_poly={1}'.format(me._projected_bounds, me.bounds_poly)
+    
         # Load the other layers; for now load 'em all above
 
         # Set up the [view](geometry/view.py) which will transform from projected coordinates
@@ -71,11 +73,12 @@ class Map(object):
         # to clip away unneeded geometry unless *cfg['export']['crop-to-view']* is set to false.
         me.view_poly = me._init_view_poly()
 
+
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected and transformed to screen coordinates.
         for layer in me.layers:
             if "sidelayer" in layer.options:
-                layer.options["init_offset"]=me._init_offset
+                layer.options["init_offset"]=(0,0) #me._init_offset
                 print '\n\n\tlayer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
             else:
                 print "\n\nNo sidelayer"
@@ -83,6 +86,66 @@ class Map(object):
 #            print "getting features for layer={0}".format(layer)
             layer.get_features()
             print "done getting features for layer={0}".format(layer.id)
+
+        data = me.options['bounds']['data']
+        # get the side offset    
+        me._side_offset=me._get_side_offset()
+        mybbox=BBox()
+        statebbox=BBox()
+        print 'me._side_offset={0}\n'.format(me._side_offset)
+        # Scale the features in the sidelayer if it's countylayer
+        for layer in me.layers:
+            if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
+                for feature in layer.features:
+                    if isinstance(feature,MultiPolygonFeature):
+                        print 'scaling feature {0}'.format(feature.props['NAME'])
+                        feature.scale_feature(scale_factor=layer.options['scale'],offset=me._side_offset)
+                    if layer.id==layer.options['sidelayer']:
+                            mybbox=geom_to_bbox(feature.geometry, me.options['bounds']['data']["min-area"])
+            elif layer.id=='statelayer':
+                for feature in layer.features:
+                    statebbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
+
+        # Scale the side bounding box
+
+    
+        id = data['sidelayer']
+        #TODO: ensure this is countylayer?
+        # Check that the layer exists.
+        if id not in me.layersById:
+            print 'sidelayer not found'
+            raise KartographError('layer not found "%s"' % id)
+            #return (0,0)
+        temp_layer = me.layersById[id]
+        print 'statebbox={0}'.format(statebbox)
+        me._side_projected_bounds=mybbox
+        me._projected_bounds=statebbox
+        print 'Pre-first offsetting: me._side_projected_bounds={0}'.format(me._side_projected_bounds)
+       # me._side_projected_bounds.scale(scale_factor=temp_layer.options['scale'],offset=me._side_offset)
+
+        print 'Pre-second offsetting: me._side_projected_bounds={0}'.format(me._side_projected_bounds)
+
+        #Choose whether to put sidelayer on side or below, depending
+        
+        if me._projected_bounds.width <= me._projected_bounds.height:
+            # Add a little breathing room on the left 
+            me._next_side_offset['x'] = me._projected_bounds.left-me._side_projected_bounds.width-me._projected_bounds.width/10.
+            me._next_side_offset['y'] = me._projected_bounds.top+me._projected_bounds.height/2.-me._side_projected_bounds.height/2.
+        else:
+            # Add some breathing room on the bottom
+            me._next_side_offset['y'] = me._projected_bounds.top-me._side_projected_bounds.height-me._projected_bounds.height/10.
+            me._next_side_offset['x'] = me._projected_bounds.left+me._projected_bounds.width/2.-me._side_projected_bounds['width']/2.
+        print 'me._next_side_offset={0}'.format(me._next_side_offset)
+         # transform to offset the sidelayers
+        for layer in me.layers:
+            if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
+                for feature in layer.features:
+                    if isinstance(feature,MultiPolygonFeature):
+                        print 'offsetting feature {0}'.format(feature.props['NAME'])
+                        feature.offset_feature(me._next_side_offset)
+    
+       # me._get_side_offset()
+        
         # In each layer we will join polygons.
         me._join_features()
         # Eventually we crop geometries to the map bounding rectangle.
@@ -206,6 +269,7 @@ class Map(object):
             return bbox_to_polygon(sbbox)
 
         bbox = BBox()
+        side_bbox=BBox()
 
         # If the bound mode is set to *points* we project all
         # points and compute the bounding box.
@@ -224,6 +288,7 @@ class Map(object):
             features = self._get_bounding_geometry()
 
             ubbox = BBox()
+            side_ubbox=BBox()
             if len(features) > 0:
                 for feature in features:
                     ubbox.join(geom_to_bbox(feature.geometry))
@@ -235,17 +300,22 @@ class Map(object):
                 print 'ubbox={0}'.format(ubbox)
             else:
                 raise KartographError('no features found for calculating the map bounds')
-            self._init_offset = self._get_side_offset()
+
+
+           
             side_features = self._get_side_bounding_geometry()
             if len(side_features) > 0:
+                print "Found_side features"
                 self._side_bounding_geometry = side_features[0].geom
-                ubbox.join(geom_to_bbox(side_features[0].geometry))
+                side_ubbox.join(geom_to_bbox(side_features[0].geometry))
                 side2=deepcopy(side_features[0])
                 side2.project(proj)
-                fbbox=geom_to_bbox(side2.geometry, data["min-area"])
-                bbox.join(fbbox)
+                side_fbbox=geom_to_bbox(side2.geometry, data["min-area"])
+                side_bbox.join(side_fbbox)
+                self._side_projected_bounds=side_bbox
+                print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
             else:
-                print "Cannot find side features"
+                print "Cannot find side features\n"
         # If we need some extra geometry around the map bounds, we inflate
         # the bbox according to the set *padding*.
                            
@@ -260,6 +330,7 @@ class Map(object):
         self._projected_bounds=bbox
         return bbox_to_polygon(bbox)
 
+    
     def _get_bounding_geometry(self):
         """
         ### Get bounding geometry
@@ -329,7 +400,7 @@ class Map(object):
         For bounds mode "*polygons*" this helper function
         returns the offset required as a result of scaling the side layer
         """
-        print 'map._get_side_offset'
+        print 'map._get_side_bounding_geometry'
 #        proj = self.proj
 
 
@@ -376,9 +447,13 @@ class Map(object):
                 scale=layer.options['scale'],
                 bounding=True)
                         )
-        print 'Done getting side bounding'
+        print 'Done getting side bounding, features.len={0}'.format(len(features))
         return features
 
+    # Hopefully get a good offset to move the county table to
+    
+
+    
     def _get_side_offset(self):
   
         print 'map._get_side_offset'
@@ -386,7 +461,7 @@ class Map(object):
 
 
         opts = self.options
-        features = []
+        feature = None
         data = opts['bounds']['data']
         id = data['sidelayer']
         #TODO: ensure this is countylayer?
@@ -396,37 +471,18 @@ class Map(object):
             return (0,0)
 #            raise KartographError('layer not found "%s"' % id)
         layer = self.layersById[id]
-        
-        #print 'layer={0},\tid={1}'.format(layer,id)
-        # Construct the filter function of the layer, which specifies
-        # what features should be excluded from the map completely.
-        if layer.options['filter'] is False:
-            layerFilter = lambda a: True
+
+        ret_offset={'x':0,'y':0}
+
+        print '&&&&layer.id={0}'.format(layer.id)
+        # Get the first feature and determine the offset as a result of scaling it
+        if len(layer.features)>0:
+            feature=layer.features[0]
+        if isinstance(feature,MultiPolygonFeature):
+            print 'Computing scale factor with layer.id={0},layer.options[\'scale\']={1}'.format(layer.id,layer.options['scale'])
+            ret_offset=feature.get_scale_offset(scale_factor=layer.options['scale'])
         else:
-            layerFilter = lambda rec: filter_record(layer.options['filter'], rec)
-
-        # Construct the filter function of the boundary, which specifies
-        # what features should be excluded from the boundary calculation.
-        # For instance, you often want to exclude Alaska and Hawaii from
-        # the boundary computation of the map, although a part of Alaska
-        # might be visible in the resulting map.
-        if data['filter']:
-            boundsFilter = lambda rec: filter_record(data['filter'], rec)
-        else:
-            boundsFilter = lambda a: True
-
-        # Combine both filters to a single function.
-        filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
-        # Load the features from the layer source (e.g. a shapefile).
-
-        print 'Getting offset for id={0}'.format(id)
-        ret_offset=layer.source.get_init_offset(
-                filter=filter,
-                min_area=data["min-area"],
-                charset=layer.options['charset'],
-                bounding=True,
-                scale=layer.options['scale']
-                )
+            print 'type of feature: {0}'.format(type(feature))
                         
 
         return ret_offset

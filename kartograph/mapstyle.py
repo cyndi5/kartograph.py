@@ -31,7 +31,7 @@ class MapStyle(object):
                         else:
                             prop += str(val.value)
                     attrs[decl.name] = prop
-                    print 'layer_id={2}, attrs[{0}]={1}'.format(decl.name,attrs[decl.name], layer_id)
+                  #  print 'layer_id={2}, attrs[{0}]={1}'.format(decl.name,attrs[decl.name], layer_id)
         return attrs
 
     def applyStyle(self, node, layer_id, layer_classes=[], fprops=dict()):

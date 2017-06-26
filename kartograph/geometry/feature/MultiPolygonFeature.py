@@ -1,6 +1,7 @@
 from Feature import Feature
 from kartograph.errors import KartographError
 from kartograph.simplify.unify import unify_rings
+from shapely.geometry import LinearRing, Polygon, MultiPolygon
 
 
 class MultiPolygonFeature(Feature):
@@ -11,6 +12,7 @@ class MultiPolygonFeature(Feature):
 
     def project_geometry(self, proj):
         """ project the geometry """
+        #print 'Projecting geometry with {0}'.format(proj)
         self.geometry = proj.plot(self.geometry)
 
     def compute_topology(self, point_store, precision=None):
@@ -29,6 +31,84 @@ class MultiPolygonFeature(Feature):
         self._topology_rings = unify_rings(rings, point_store, precision=precision, feature=self)
         self._topology_num_holes = num_holes
 
+
+    # Returns the offset from the first canonical point' 
+    def get_scale_offset(self, scale_factor=1):
+        """
+        returns the offset from some point
+        """
+      
+        lines=[self.geometry.exterior]
+        for hole in self.geometry.interiors:
+            lines.append(hole)
+        offset={}
+        temp_offset={}
+        new_x=0
+        new_y=0
+        if len(lines)>0 and len(lines[0].coords)>0:
+            print '@@doing len stuff'
+            new_x=(lines[0].coords[0][0] * scale_factor)
+            new_y=(lines[0].coords[0][1] * scale_factor)
+            offset['x']=lines[0].coords[0][0]-new_x
+            offset['y']=lines[0].coords[0][1]-new_y
+            for line in lines:
+                print 'Entering new line in offset thing'
+                #for coord in line.coords:
+                 #   temp_offset['x']=coord[0]*(1-scale_factor)
+                  #  temp_offset['y']=coord[1]*(1-scale_factor)
+                   # print 'doing scale offset comp: resulting offset={0}'.format(temp_offset)
+        else:
+            print '@@bad len stuff'
+        return offset
+
+    def scale_feature(self, scale_factor=1.,offset={'x':0.,'y':0.}):
+        """
+        scales the feature and adjusts points by offset 
+        """
+
+        lines=[self.geometry.exterior]
+        for hole in self.geometry.interiors:
+            lines.append(hole)
+
+        new_lines=[]
+        curr_line_coords=[]
+       # offset['x']=offset['y']=0
+        print 'scaling at {1}, offset={0}'.format(offset, scale_factor)
+       # print 'self.geometry={0}\n\n'.format(self.geometry)
+        for line in lines:
+            curr_line_coords=[]
+            for coord in line.coords:
+                # append the scaled and offsetted coordinate
+                curr_line_coords.append((coord[0]*scale_factor+offset['x'],coord[1]*scale_factor+offset['y']))
+               # print 'coord[0]*scale_factor+offset[\'x\']-coord[0]={0}'.format(coord[0]*scale_factor+offset['x']-coord[0])
+            #print '\tcurr_line_coords={0}'.format(curr_line_coords)
+            new_lines.append(curr_line_coords)
+
+        self.geometry=Polygon(new_lines[0],new_lines[1:])
+    #    print 'self.geometry={0}'.format(self.geometry)
+            
+    def offset_feature(self, offset={'x':0,'y':0}):
+        """
+        adjusts points by offset 
+        """
+        lines=[self.geometry.exterior]
+        for hole in self.geometry.interiors:
+            lines.append(hole)
+        new_lines=[]
+        curr_line_coords=[]
+        for line in lines:
+            curr_line_coords=[]
+            for coord in line.coords:
+                # append the scaled and offsetted coordinate
+              #  print 'coord={0}'.format(coord)
+                curr_line_coords.append((coord[0]+offset['x'],coord[1]+offset['y']))
+            #print '\tcurr_line_coords={0}'.format(curr_line_coords)
+            new_lines.append(curr_line_coords)
+
+
+        self.geometry=Polygon(new_lines[0],new_lines[1:])
+     #   print 'self.geometry={0}'.format(self.geometry)
+        
     def break_into_lines(self):
         """
         temporarily stores the geometry in a custom representation in order
