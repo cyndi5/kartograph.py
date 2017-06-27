@@ -129,8 +129,7 @@ class MapLayer(object):
             else:
                 feature.project(layer.map.proj)
   
-          # Transform features to view coordinates.
-            feature.project_view(layer.map.view)
+  
 
             #It's after this point that we want to adjust the features with scaling and such
 

@@ -143,7 +143,7 @@ class SvgRenderer(MapRenderer):
                     self.scale_offset_x=temp_pt[0]-temp_pt1[0]
                     self.scale_offset_y=temp_pt[1]-temp_pt1[1]
                 for pt in ring.coords:
-                    pt1=(pt[0]*scale+offset['x']+self.scale_offset_x,pt[1]*scale+offset['y']+self.scale_offset_y)
+                    pt1=(pt[0],pt[1])
                     kept.append(pt1)
                 if len(kept) <= 3:
                     continue

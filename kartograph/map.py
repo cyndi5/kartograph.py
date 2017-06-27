@@ -4,6 +4,7 @@ from maplayer import MapLayer
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
 from geometry.feature import MultiPolygonFeature
+from math import sqrt
 
 from copy import deepcopy
 from geometry import BBox, View
@@ -65,13 +66,13 @@ class Map(object):
         print '**init bounds, me._projected_bounds={0}, me.bounds_poly={1}'.format(me._projected_bounds, me.bounds_poly)
     
         # Load the other layers; for now load 'em all above
+   
 
+        # Transform features to view coordinates.
+       
         # Set up the [view](geometry/view.py) which will transform from projected coordinates
         # (e.g. in meters) to screen coordinates in our map output.
-        me.view = me._get_view()
-        # Get the polygon (in fact it's a rectangle in most cases) that will be used
-        # to clip away unneeded geometry unless *cfg['export']['crop-to-view']* is set to false.
-        me.view_poly = me._init_view_poly()
+
 
 
         # Load all features that could be visible in each layer. The feature geometries will
@@ -87,65 +88,18 @@ class Map(object):
             layer.get_features()
             print "done getting features for layer={0}".format(layer.id)
 
-        data = me.options['bounds']['data']
-        # get the side offset    
-        me._side_offset=me._get_side_offset()
-        mybbox=BBox()
-        statebbox=BBox()
-        print 'me._side_offset={0}\n'.format(me._side_offset)
-        # Scale the features in the sidelayer if it's countylayer
-        for layer in me.layers:
-            if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
-                for feature in layer.features:
-                    if isinstance(feature,MultiPolygonFeature):
-                        print 'scaling feature {0}'.format(feature.props['NAME'])
-                        feature.scale_feature(scale_factor=layer.options['scale'],offset=me._side_offset)
-                    if layer.id==layer.options['sidelayer']:
-                            mybbox=geom_to_bbox(feature.geometry, me.options['bounds']['data']["min-area"])
-            elif layer.id=='statelayer':
-                for feature in layer.features:
-                    statebbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
+        # initialize the projected bounds of the main layer and the sidelayer
+        me._auto_scale_factor=me._init_projected_bounds()
+        # scale and offset the side features
+        me._scale_offset_side_features()
 
-        # Scale the side bounding box
+        # Do the view AFTER projecting 
+        me.view = me._get_view()
+        # Get the polygon (in fact it's a rectangle in most cases) that will be used
+        # to clip away unneeded geometry unless *cfg['export']['crop-to-view']* is set to false.
+        me.view_poly = me._init_view_poly()
 
-    
-        id = data['sidelayer']
-        #TODO: ensure this is countylayer?
-        # Check that the layer exists.
-        if id not in me.layersById:
-            print 'sidelayer not found'
-            raise KartographError('layer not found "%s"' % id)
-            #return (0,0)
-        temp_layer = me.layersById[id]
-        print 'statebbox={0}'.format(statebbox)
-        me._side_projected_bounds=mybbox
-        me._projected_bounds=statebbox
-        print 'Pre-first offsetting: me._side_projected_bounds={0}'.format(me._side_projected_bounds)
-       # me._side_projected_bounds.scale(scale_factor=temp_layer.options['scale'],offset=me._side_offset)
-
-        print 'Pre-second offsetting: me._side_projected_bounds={0}'.format(me._side_projected_bounds)
-
-        #Choose whether to put sidelayer on side or below, depending
-        
-        if me._projected_bounds.width <= me._projected_bounds.height:
-            # Add a little breathing room on the left 
-            me._next_side_offset['x'] = me._projected_bounds.left-me._side_projected_bounds.width-me._projected_bounds.width/10.
-            me._next_side_offset['y'] = me._projected_bounds.top+me._projected_bounds.height/2.-me._side_projected_bounds.height/2.
-        else:
-            # Add some breathing room on the bottom
-            me._next_side_offset['y'] = me._projected_bounds.top-me._side_projected_bounds.height-me._projected_bounds.height/10.
-            me._next_side_offset['x'] = me._projected_bounds.left+me._projected_bounds.width/2.-me._side_projected_bounds['width']/2.
-        print 'me._next_side_offset={0}'.format(me._next_side_offset)
-         # transform to offset the sidelayers
-        for layer in me.layers:
-            if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
-                for feature in layer.features:
-                    if isinstance(feature,MultiPolygonFeature):
-                        print 'offsetting feature {0}'.format(feature.props['NAME'])
-                        feature.offset_feature(me._next_side_offset)
-    
-       # me._get_side_offset()
-        
+        me._project_to_view()
         # In each layer we will join polygons.
         me._join_features()
         # Eventually we crop geometries to the map bounding rectangle.
@@ -159,8 +113,107 @@ class Map(object):
         # Or subtract one layer from another (or more), for instance to cut out lakes
         # from political boundaries.
         me._subtract_layers()
-    
 
+    # Initialize the projected bounds after getting layers and projecting 
+    def _init_projected_bounds(self):
+        opts=self.options
+        sidelayer_bbox=BBox()
+        layer_bbox=BBox()
+        data = opts['bounds']['data']
+        auto_scale_factor=1
+        # Set up initial projected bounding box
+        if data['sidelayer'] in self.layersById:
+            layer=self.layersById[data['sidelayer']]
+            for feature in layer.features:
+                sidelayer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
+        self._side_projected_bounds=sidelayer_bbox
+        if data['layer'] in self.layersById:
+            layer=self.layersById[data['layer']]
+            for feature in layer.features:
+                layer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
+            self._projected_bounds=layer_bbox
+        if opts['bounds']['scale-sidelayer']=='auto':
+            auto_scale_factor=opts['bounds']['scale-sidelayer-factor']*sqrt(layer_bbox.width/sidelayer_bbox.width*layer_bbox.height/sidelayer_bbox.height)
+        return auto_scale_factor
+            
+    # Project features to view coordinates
+    def _project_to_view(self):
+        for layer in self.layers:
+            for feature in layer.features:
+                #print 'feature={0}'.format(feature)
+                feature.project_view(self.view)
+                #print 'after proj feature={0}'.format(feature)
+    
+    # Scale and offset the side features
+    def _scale_offset_side_features(self):
+        opts=self.options
+        self._side_offset=self._get_side_offset()
+        mybbox=BBox()
+        statebbox=BBox()
+        print 'self._side_offset={0}\n'.format(self._side_offset)
+        data = opts['bounds']['data']
+        if data['layer'] in self.layersById:
+            layer=self.layersById[data['layer']]
+            for feature in layer.features:
+                statebbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
+        # Scale the features in the sidelayer if it's countylayer
+        for layer in self.layers:
+            if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
+                for feature in layer.features:
+                    if isinstance(feature,MultiPolygonFeature):
+                        print 'scaling feature {0}'.format(feature.props['NAME'])
+                        if opts['bounds']['scale-sidelayer']=='auto':
+                            feature.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
+                        else:
+                            feature.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
+                    if layer.id==layer.options['sidelayer']:
+                            mybbox=geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"])
+
+
+        # We need to set the view up and project AFTER all this
+
+    
+        id = data['sidelayer']
+        #TODO: ensure this is countylayer?
+        # Check that the layer exists.
+        if id not in self.layersById:
+            print 'sidelayer not found'
+            raise KartographError('layer not found "%s"' % id)
+            #return (0,0)
+        temp_layer = self.layersById[id]
+        print 'statebbox={0}'.format(statebbox)
+        self._side_projected_bounds=mybbox
+        self._projected_bounds=statebbox
+        print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
+      
+
+        print 'Pre-second offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
+
+        #Choose whether to put sidelayer on side or below, depending
+        
+        if self._projected_bounds.width <= self._projected_bounds.height:
+            # Add a little breathing room on the left
+            print 'Adding on left'
+            self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/8.-self._side_projected_bounds.width
+            self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top+self._projected_bounds.height/2-self._side_projected_bounds.height/2.
+        else:
+            # Add some breathing room on the bottom
+            print 'Adding on bottom'
+            self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top-self._side_projected_bounds.height-self._projected_bounds.height/4.
+            self._next_side_offset['x'] = self._projected_bounds.left+self._projected_bounds.width/2.-self._side_projected_bounds['width']/2.
+        print 'self._next_side_offset={0}'.format(self._next_side_offset)
+         # transform to offset the sidelayers
+        new_proj_bbox=BBox()
+        for layer in self.layers:
+            if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
+                for feature in layer.features:
+                    if isinstance(feature,MultiPolygonFeature):
+                        print 'offsetting feature {0}'.format(feature.props['NAME'])
+                        feature.offset_feature(self._next_side_offset)
+                    if layer.id==layer.options['sidelayer']:
+                        new_proj_bbox=geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"])
+        self._side_projected_bounds=new_proj_bbox
+  
     def _init_projection(self):
         """
         ### Initializing the map projection
@@ -478,9 +531,15 @@ class Map(object):
         # Get the first feature and determine the offset as a result of scaling it
         if len(layer.features)>0:
             feature=layer.features[0]
+            print 'len(layer.features)={0}'.format(len(layer.features))
+        else:
+            print 'len(layer.features)={0}'.format(len(layer.features))
         if isinstance(feature,MultiPolygonFeature):
             print 'Computing scale factor with layer.id={0},layer.options[\'scale\']={1}'.format(layer.id,layer.options['scale'])
-            ret_offset=feature.get_scale_offset(scale_factor=layer.options['scale'])
+            if opts['bounds']['scale-sidelayer']=='auto':
+                ret_offset=feature.get_scale_offset(scale_factor=self._auto_scale_factor)
+            else:
+                ret_offset=feature.get_scale_offset(scale_factor=layer.options['scale'])
         else:
             print 'type of feature: {0}'.format(type(feature))
                         
@@ -492,7 +551,11 @@ class Map(object):
         ### Initialize the view
         """
         # Compute the bounding box of the bounding polygons.
-        self.src_bbox = bbox = geom_to_bbox(self.bounds_poly)
+        bbox = deepcopy(self._projected_bounds)
+        bbox.join(self._side_projected_bounds)      #geom_to_bbox(self.projec)
+        self.src_bbox = bbox
+        print 'self._projected_bounds={0}, self._side_projected_bounds={1}, bbox={2}'.format(self._projected_bounds,self._side_projected_bounds, bbox)
+
         exp = self.options["export"]
         w = exp["width"]
         h = exp["height"]
@@ -507,7 +570,7 @@ class Map(object):
             h = w / ratio
         elif w == "auto":
             w = h * ratio
-        return View(bbox, w, h - 1)
+        return View(bbox, w, h)
 
     def _init_view_poly(self):
         """
@@ -743,6 +806,7 @@ class Map(object):
         """
         computes the width of the map (at the lower boundary) in projection units (typically meters)
         """
+        print 'Computing map scale'
         p0 = (0, me.view.height)
         p1 = (me.view.width, p0[1])
         p0 = me.view.project_inverse(p0)
@@ -752,6 +816,7 @@ class Map(object):
         return dist / me.view.width
 
     def scale_bar_width(me):
+        print 'in scale_bar_width'
         from math import log
         scale = me.compute_map_scale()
         w = (me.view.width * 0.2) * scale

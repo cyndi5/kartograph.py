@@ -310,7 +310,11 @@ def parse_bounds(opts):
 
     mode = bounds['mode']
     data = bounds['data']
-
+    # Deal with if scaling sidelayer not set 
+    if 'scale-sidelayer' not in bounds:
+        bounds['scale-sidelayer']="manual"
+    if 'scale-sidelayer-factor' not in bounds:
+        bounds['scale-sidelayer-factor']=.8
     if 'crop' not in bounds:
         bounds['crop'] = 'auto'
 # Note: padding in bounds specifies how much extra space we give ourselves

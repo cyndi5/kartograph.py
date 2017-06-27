@@ -99,6 +99,7 @@ class View(object):
         points = []
         for pt in ring.coords:
             x, y = self.project(pt)
+            #print 'pt={0}, x,y={1}'.format(pt,(x,y))
             points.append((x, y))
         return [points]
 
