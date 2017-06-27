@@ -28,6 +28,8 @@ class Feature(object):
     def project_view(self, view):
         if self.geometry:
             self.geometry = view.project_geometry(self.geometry)
+        else:
+            print 'self.geometry=False'
 
     def crop_to(self, geometry):
         if self.geometry:

@@ -8,7 +8,7 @@ class MultiPolygonFeature(Feature):
     """ wrapper around shapely.geometry.MultiPolygon """
 
     def __repr__(self):
-        return 'MultiPolygonFeature()'
+        return 'MultiPolygonFeature(), geometry={0}'.format(self.geometry)
 
     def project_geometry(self, proj):
         """ project the geometry """
@@ -33,7 +33,7 @@ class MultiPolygonFeature(Feature):
 
 
     # Returns the offset from the first canonical point' 
-    def get_scale_offset(self, scale_factor=1):
+    def get_scale_offset(self, scale_factor=1.):
         """
         returns the offset from some point
         """
@@ -41,18 +41,24 @@ class MultiPolygonFeature(Feature):
         lines=[self.geometry.exterior]
         for hole in self.geometry.interiors:
             lines.append(hole)
-        offset={}
+        offset={'x':0,'y':0}
         temp_offset={}
         new_x=0
         new_y=0
+        print 'in offset, len(lines)={0}'.format(len(lines))
         if len(lines)>0 and len(lines[0].coords)>0:
-            print '@@doing len stuff'
-            new_x=(lines[0].coords[0][0] * scale_factor)
-            new_y=(lines[0].coords[0][1] * scale_factor)
-            offset['x']=lines[0].coords[0][0]-new_x
-            offset['y']=lines[0].coords[0][1]-new_y
-            for line in lines:
-                print 'Entering new line in offset thing'
+            print '@@doing len stuff, len(lines[0].coords)={0}'.format(len(lines[0].coords))
+            for coord in lines[0].coords:
+                new_x=(coord[0] * 1.*scale_factor)
+                new_y=(coord[1] * 1.*scale_factor)
+                temp_offset['x']=-new_x+coord[0]
+                temp_offset['y']=-new_y+coord[1]
+                if temp_offset['x']*temp_offset['x']+temp_offset['y']*temp_offset['y'] >= offset['x']*offset['x']+offset['y']*offset['y']:
+                   offset['x']=temp_offset['x']
+                   offset['y']=temp_offset['y']
+                print 'offset={0}'.format(offset)
+            #for line in lines:
+               # print 'Entering new line in offset thing'
                 #for coord in line.coords:
                  #   temp_offset['x']=coord[0]*(1-scale_factor)
                   #  temp_offset['y']=coord[1]*(1-scale_factor)
@@ -80,8 +86,9 @@ class MultiPolygonFeature(Feature):
             for coord in line.coords:
                 # append the scaled and offsetted coordinate
                 curr_line_coords.append((coord[0]*scale_factor+offset['x'],coord[1]*scale_factor+offset['y']))
-               # print 'coord[0]*scale_factor+offset[\'x\']-coord[0]={0}'.format(coord[0]*scale_factor+offset['x']-coord[0])
+                print 'coord[0]*scale_factor+offset[\'x\']-coord[0]={0}'.format(coord[0]*scale_factor+offset['x']-coord[0])
             #print '\tcurr_line_coords={0}'.format(curr_line_coords)
+            #new_lines.append(line)
             new_lines.append(curr_line_coords)
 
         self.geometry=Polygon(new_lines[0],new_lines[1:])
