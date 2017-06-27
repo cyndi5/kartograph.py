@@ -1,0 +1,29 @@
+#countylayer {
+  stroke-width: 2px;
+  fill: #fefefe;
+  stroke-linecap: butt;
+  stroke-opacity: 1;
+}
+#placelayer
+{
+ fill: #d0d0d0;
+}
+
+
+
+.water
+{
+#  color: #3f3fff;
+  stroke-width: 2px;
+#  stroke: #3f3fff;
+#  fill: #3f3fff;
+color: #ffffff;
+stroke: #ffffff;
+fill: #ffffff;
+}
+#statelayer
+{
+  fill: #e8e2b7;
+#   opacity: 0.5;
+}
+
