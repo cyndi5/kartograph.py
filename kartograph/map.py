@@ -90,6 +90,7 @@ class Map(object):
 
         # initialize the projected bounds of the main layer and the sidelayer
         me._auto_scale_factor=me._init_projected_bounds()
+        
         # scale and offset the side features
         me._scale_offset_side_features()
 

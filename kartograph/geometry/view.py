@@ -4,7 +4,7 @@ from kartograph.errors import KartographError
 
 
 # # View
-
+from math import ceil
 # Simple 2D coordinate transformation.
 
 class View(object):
@@ -17,8 +17,13 @@ class View(object):
         self.padding = padding
         self.height = height
         if bbox:
-            self.scale = min((width - padding * 2) / bbox.width, (height - padding * 2) / bbox.height)
-
+            width_ratio = (width - padding * 2)/bbox.width
+            height_ratio = (height - padding * 2)/bbox.height
+            self.scale = min(width_ratio, height_ratio)
+            if width_ratio < height_ratio:
+                self.height = ceil(bbox.height*self.scale)+2*padding
+            else:
+                self.width = ceil(bbox.width*self.scale)+2*padding
     def project(self, pt):
         bbox = self.bbox
         if not bbox:
