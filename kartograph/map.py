@@ -559,6 +559,7 @@ class Map(object):
         exp = self.options["export"]
         w = exp["width"]
         h = exp["height"]
+        padding = exp["padding"]
         ratio = exp["ratio"]
 
         # Compute ratio from width and height.
@@ -570,7 +571,7 @@ class Map(object):
             h = w / ratio
         elif w == "auto":
             w = h * ratio
-        return View(bbox, w, h)
+        return View(bbox, w, h, padding)
 
     def _init_view_poly(self):
         """

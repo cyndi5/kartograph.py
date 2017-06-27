@@ -412,6 +412,9 @@ def parse_export(opts):
     elif "width" not in exp:
         exp["width"] = "auto"
 
+    if "padding" not in exp:
+        exp["padding"] = 0
+
     if "ratio" not in exp:
         exp["ratio"] = "auto"
     if "round" not in exp:
