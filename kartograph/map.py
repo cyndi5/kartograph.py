@@ -65,18 +65,32 @@ class Map(object):
         me.bounds_poly = me._init_bounds()
         print '**init bounds, me._projected_bounds={0}, me.bounds_poly={1}'.format(me._projected_bounds, me.bounds_poly)
     
-        # Load the other layers; for now load 'em all above
-   
-
-        # Transform features to view coordinates.
-       
-        # Set up the [view](geometry/view.py) which will transform from projected coordinates
-        # (e.g. in meters) to screen coordinates in our map output.
-
-
-
+    #       First, load the main_geometry of the place we want
+      
+        layer = me.layersById['placelayer']
+        layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
+        me._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
+        print 'main_geom={0}'.format(me._main_geom)
         # Load all features that could be visible in each layer. The feature geometries will
-        # be projected and transformed to screen coordinates.
+        # be projected 
+
+        
+        for layer in me.layers:
+            if "sidelayer" in layer.options:
+                layer.options["init_offset"]=(0,0) #me._init_offset
+                #print '\n\n\tlayer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
+            else:
+                #print "\n\nNo sidelayer"
+                layer.options["init_offset"]=(0, 0)
+#            print "getting features for layer={0}".format(layer)
+            if layer.id==me.options['bounds']['data']['sidelayer']:
+                layer.get_features(containing_geom=me._main_geom)
+                #me._side_bounding_geometry=layer.features[0].geometry
+                print 'side bounding geometry bbox={0}'.format(geom_to_bbox(me._side_bounding_geometry))
+                print "done getting features for layer={0}".format(layer.id)
+
+       
+        
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=(0,0) #me._init_offset
@@ -85,9 +99,9 @@ class Map(object):
                 print "\n\nNo sidelayer"
                 layer.options["init_offset"]=(0, 0)
 #            print "getting features for layer={0}".format(layer)
-            layer.get_features()
-            print "done getting features for layer={0}".format(layer.id)
-
+            if layer.id!=me.options['bounds']['data']['sidelayer']:
+                layer.get_features()
+                print "done getting features for layer={0}".format(layer.id)
         # initialize the projected bounds of the main layer and the sidelayer
         me._auto_scale_factor=me._init_projected_bounds()
         

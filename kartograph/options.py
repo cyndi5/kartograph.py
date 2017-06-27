@@ -192,7 +192,8 @@ def parse_layer_labeling(layer):
 def parse_layer_filter(layer):
     if 'filter' not in layer:
         layer['filter'] = False
-        return
+    if 'main-filter' not in layer:
+        layer['main-filter'] = False
     return  # todo: check valid filter syntax (recursivly, place code in filter.py)
     filter = layer['filter']
     if 'type' not in filter:

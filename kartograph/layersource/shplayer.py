@@ -2,6 +2,7 @@ from copy import deepcopy
 from layersource import LayerSource
 from kartograph.errors import *
 from kartograph.geometry import BBox, create_feature
+from kartograph.geometry.utils import geom_to_bbox
 from os.path import exists
 from osgeo.osr import SpatialReference
 import pyproj
@@ -93,7 +94,7 @@ class ShapefileLayer(LayerSource):
             self.shapes.pop(i)
 
             
-    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0), bounding_geom=None):
+    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0), bounding_geom=None, containing_geom=None):
         """
         ### Get features
         """
@@ -101,6 +102,11 @@ class ShapefileLayer(LayerSource):
         self.init_offset=init_offset
         self.offset=offset
         self.scale=scale
+        max_intersect=0
+        if containing_geom is None:
+            print '\t\tcontaining_geom is None'
+        if bounding_geom is None:
+            print '\t\tbounding_geom is None'
         #print 'get_features, self.offset={0}'.format(self.offset)
  #       print 'self.recs={0}\nself.attributes={1}'.format(self.recs,self.attributes)
 #        print 'type(self)={0}'.format(type(self))
@@ -114,6 +120,7 @@ class ShapefileLayer(LayerSource):
         if bbox is not None and not isinstance(bbox, BBox):
             bbox = BBox(bbox[2] - bbox[0], bbox[3] - bbox[1], bbox[0], bbox[1])
         ignored = 0
+        print 'len(self.recs)={0}'.format(len(self.recs))
         for i in range(0, len(self.recs)):
             # Read all record attributes
             drec = {}
@@ -138,17 +145,21 @@ class ShapefileLayer(LayerSource):
                 shp.bounding=bounding
                 shp.the_feat_name=the_feat_name
                 geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
+                print 'Name: {0}, bbox={1}'.format(drec['NAME'],geom_to_bbox(geom))
                 if geom is None:
                     ignored += 1
                     continue
                 intersect_geom=bounding_geom.intersection(geom)
+                if intersect_geom.area>0:
+                    print 'intersect_geom.area={0}'.format(intersect_geom.area)
                 if intersect_geom.area>=self.intersect_tol*geom.area:
                     desired_geom=True
                     #print 'Found intersecting feature {0}'.format(the_feat_name)
             # Check for sufficient intersection to add places automatically
                 drec['DESIRED_GEOM']=True
             if filter is None or filter(drec):
-                #print '\tIn for the_feat_name {0}'.format(the_feat_name)
+                #if containing_geom is not None:
+                 #   print '\tIn for the_feat_name {0}'.format(drec['NAME'])
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
                 for j in range(len(self.attributes)):
@@ -179,10 +190,7 @@ class ShapefileLayer(LayerSource):
                         self.forget_shape(i)
                         continue
                     else:
-                        print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec)
- 
- 
-                   
+                        print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec)      
                 else:
                     # If we didn't already set the shape and geom above, we set it here instead
                     shp = self.get_shape(i)
@@ -195,18 +203,30 @@ class ShapefileLayer(LayerSource):
                         ignored += 1
                         continue
                     
-               # if not desired_geom:
-                #    ignored += 1
-                 #   self.forget_shape(i)
-                 #   continue
-
-                    # Finally we construct the map feature and append it to the
-                    # result list
-                #print 'Constructing feature {0}'.format(drec['NAME'])
-                feature = create_feature(geom, props)
-                #print 'Constructing feature {0}'.format(drec['NAME'])
-                self.feature = feature
-                res.append(feature)
+            
+                if containing_geom is not None:
+                    #print 'Checking county {0}'.format(drec['NAME'])
+                    # Find if it's the most intersecting of the geometries with
+                    # containing_geom (which should really be contained_geom but haven't
+                    # changed yet)
+                    curr_intersect=containing_geom.intersection(geom)
+                    if curr_intersect.area<=max_intersect:
+                       # print '\tfail: curr_intersect.area={0}'.format(curr_intersect.area)
+                        ignored += 1
+                        self.forget_shape(i)
+                        #continue
+                    else:
+                        # Set this to be the new intersection level
+                        print '\tNew largest area intersection, area={0}'.format(curr_intersect.area)
+                        max_intersect = curr_intersect.area
+                        feature = create_feature(geom, props)
+                        res=[feature]
+                        #continue
+                else:
+                    #print 'Constructing feature {0}'.format(drec['NAME'])
+                    feature = create_feature(geom, props)
+                    self.feature = feature
+                    res.append(feature)
         if bbox is not None and ignored > 0 and verbose:
             print "-ignoring %d shapes (not in bounds %s )" % (ignored, bbox)
         #self.proj=None
@@ -214,16 +234,11 @@ class ShapefileLayer(LayerSource):
         return res
 
     # get the (not really initial offset as a tuple for scaling this thing
-    def get_scaling_offset(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1):
+    def get_main_geom(self, attr=None, main_filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False):
         """
         ### Get features
         """
         result = None
-        self.offset=offset
-        print 'self.offset={0}'.format(self.offset)
-        self.scale=scale
-        
-        print 'get_features, self.offset={0}'.format(self.offset)
         # We will try these encodings..
         known_encodings = ['utf-8', 'latin-1', 'iso-8859-2', 'iso-8859-15']
         try_encodings = [charset]
@@ -231,8 +246,7 @@ class ShapefileLayer(LayerSource):
             if enc != charset:
                 try_encodings.append(enc)
         # Eventually we convert the bbox list into a proper BBox instance
-        if bbox is not None and not isinstance(bbox, BBox):
-            bbox = BBox(bbox[2] - bbox[0], bbox[3] - bbox[1], bbox[0], bbox[1])
+
         ignored = 0
         # Read all record attributes
         drec = {}
@@ -248,9 +262,8 @@ class ShapefileLayer(LayerSource):
                 the_feat_name=drec['FULLNAME']
             if len(the_feat_name.strip())>0:
                 is_nameless=False
-            if filter is None or filter(drec): 
-                the_feat_name=the_feat_name.strip('\n');
-                print 'Name: {0}'.format(the_feat_name)
+            if main_filter is None or main_filter(drec): 
+               
                 sq_miles_water=drec['AWATER']/(640*4046.86)
 #                if sq_miles_water>=1:
 #                    print 'Name: {0}\t{1:.2f} sq miles'.format(the_feat_name, sq_miles_water)
@@ -278,17 +291,14 @@ class ShapefileLayer(LayerSource):
                 shp = self.get_shape(i)
                 shp.bounding=bounding
                 shp.the_feat_name=the_feat_name
-
-                pts = shp.points
-               # ..and convert the raw shape into a shapely.geometry
-                    # result list
-                return get_scale_offset(pts,self.proj,scale)
-        if bbox is not None and ignored > 0 and verbose:
-            print "-ignoring %d shapes (not in bounds %s )" % (ignored, bbox)
+                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
+                
+               # ..and return the geom of the place we wanted 
+                return geom
         #self.proj=None
 #        print 'res={0}'.format(res)
-        raise KartographError('having problems with sidelayer') 
-        return result
+        raise KartographError('having problems with main feature') 
+        return None
 
 # # shape2geometry
 

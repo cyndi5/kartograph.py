@@ -56,7 +56,7 @@ class MultiPolygonFeature(Feature):
                 if temp_offset['x']*temp_offset['x']+temp_offset['y']*temp_offset['y'] >= offset['x']*offset['x']+offset['y']*offset['y']:
                    offset['x']=temp_offset['x']
                    offset['y']=temp_offset['y']
-                print 'offset={0}'.format(offset)
+                #print 'offset={0}'.format(offset)
             #for line in lines:
                # print 'Entering new line in offset thing'
                 #for coord in line.coords:
@@ -79,14 +79,13 @@ class MultiPolygonFeature(Feature):
         new_lines=[]
         curr_line_coords=[]
        # offset['x']=offset['y']=0
-        print 'scaling at {1}, offset={0}'.format(offset, scale_factor)
+        #print 'scaling at {1}, offset={0}'.format(offset, scale_factor)
        # print 'self.geometry={0}\n\n'.format(self.geometry)
         for line in lines:
             curr_line_coords=[]
             for coord in line.coords:
                 # append the scaled and offsetted coordinate
                 curr_line_coords.append((coord[0]*scale_factor+offset['x'],coord[1]*scale_factor+offset['y']))
-                print 'coord[0]*scale_factor+offset[\'x\']-coord[0]={0}'.format(coord[0]*scale_factor+offset['x']-coord[0])
             #print '\tcurr_line_coords={0}'.format(curr_line_coords)
             #new_lines.append(line)
             new_lines.append(curr_line_coords)

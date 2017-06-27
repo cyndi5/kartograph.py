@@ -36,7 +36,7 @@ class MapLayer(object):
         # Instantiate the layer source which will generate features from the source
         # geo data such as shapefiles or virtual sources such as graticule lines.
         self.source = handle_layer_source(self.options, self.cache)
-    def get_features(layer, filter=False, min_area=0):
+    def get_features(layer, filter=False, min_area=0, containing_geom=None):
         """
         ### get_features()
         Returns a list of projected and filtered features of a layer.
@@ -73,7 +73,7 @@ class MapLayer(object):
                 # otherwise it will use the user defined bbox in the format
                 # [minLon, minLat, maxLon, maxLat]
                 bbox = opts['bounds']['crop']
-            if "sidelayer" in layer.options and layer.map._side_bounding_geometry is not None:
+            if "sidelayer" in layer.options and opts['bounds']['data']['sidelayer']!=layer.id and layer.map._side_bounding_geometry is not None:
                 # We are cropping based on whether it's in the sidelayer
                 bounding_geom=layer.map._side_bounding_geometry
 
@@ -94,7 +94,8 @@ class MapLayer(object):
                 ignore_holes='ignore-holes' in layer.options and layer.options['ignore-holes'],
                 charset=layer.options['charset'], offset=layer.options['offset'], scale=layer.options['scale'], 
                 init_offset=layer.options['init_offset'],
-                bounding_geom=bounding_geom
+                bounding_geom=bounding_geom,
+                containing_geom=containing_geom
             )
             if _verbose:
                 #print 'loaded %d features from shapefile %s' % (len(features), layer.options['src'])
@@ -123,6 +124,10 @@ class MapLayer(object):
          #   features.append(feature)
         for feature in features:
             #print 'feature={0}'.format(feature)
+
+            # Hack to fix the side bounding geometry quickly
+            if layer.id=='countylayer':
+                layer.map._side_bounding_geometry=feature.geometry
             # If the features are not projected yet, we project them now (either way it sesms)
             if not is_projected:
                 feature.project(layer.map.proj)
