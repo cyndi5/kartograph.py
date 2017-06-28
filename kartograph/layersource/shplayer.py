@@ -145,7 +145,7 @@ class ShapefileLayer(LayerSource):
                 shp.bounding=bounding
                 shp.the_feat_name=the_feat_name
                 geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
-                print 'Name: {0}, bbox={1}'.format(drec['NAME'],geom_to_bbox(geom))
+                #print 'Name: {0}, bbox={1}'.format(drec['NAME'],geom_to_bbox(geom))
                 if geom is None:
                     ignored += 1
                     continue

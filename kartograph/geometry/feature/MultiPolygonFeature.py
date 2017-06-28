@@ -37,9 +37,12 @@ class MultiPolygonFeature(Feature):
         """
         returns the offset from some point
         """
-      
-        lines=[self.geometry.exterior]
-        for hole in self.geometry.interiors:
+        if isinstance(self.geometry,MultiPolygon):
+            curr_geom=self.geometry.geoms[0]
+        else:
+            curr_geom=self.geometry
+        lines=[curr_geom.exterior]
+        for hole in curr_geom.interiors:
             lines.append(hole)
         offset={'x':0,'y':0}
         temp_offset={}
@@ -56,24 +59,27 @@ class MultiPolygonFeature(Feature):
                 if temp_offset['x']*temp_offset['x']+temp_offset['y']*temp_offset['y'] >= offset['x']*offset['x']+offset['y']*offset['y']:
                    offset['x']=temp_offset['x']
                    offset['y']=temp_offset['y']
-                #print 'offset={0}'.format(offset)
-            #for line in lines:
-               # print 'Entering new line in offset thing'
-                #for coord in line.coords:
-                 #   temp_offset['x']=coord[0]*(1-scale_factor)
-                  #  temp_offset['y']=coord[1]*(1-scale_factor)
-                   # print 'doing scale offset comp: resulting offset={0}'.format(temp_offset)
+ 
         else:
             print '@@bad len stuff'
         return offset
-
+    
     def scale_feature(self, scale_factor=1.,offset={'x':0.,'y':0.}):
+        if isinstance(self.geometry,MultiPolygon):
+            new_geoms=[]
+            print('self.geometry.geoms={0}'.format(list(self.geometry.geoms)))
+            for curr_geom in self.geometry.geoms:
+                new_geoms.append(self.scale_feature_polygon(curr_geom,scale_factor=scale_factor, offset=offset))
+                self.geometry=MultiPolygon(new_geoms)
+        else:
+            self.geometry=self.scale_feature_polygon(self.geometry,scale_factor=scale_factor, offset=offset)
+    def scale_feature_polygon(self, geometry, scale_factor=1.,offset={'x':0.,'y':0.}):
         """
         scales the feature and adjusts points by offset 
         """
 
-        lines=[self.geometry.exterior]
-        for hole in self.geometry.interiors:
+        lines=[geometry.exterior]
+        for hole in geometry.interiors:
             lines.append(hole)
 
         new_lines=[]
@@ -90,15 +96,24 @@ class MultiPolygonFeature(Feature):
             #new_lines.append(line)
             new_lines.append(curr_line_coords)
 
-        self.geometry=Polygon(new_lines[0],new_lines[1:])
+        return Polygon(new_lines[0],new_lines[1:])
     #    print 'self.geometry={0}'.format(self.geometry)
+    
+    def offset_feature(self, offset={'x':0.,'y':0.}):
+        if isinstance(self.geometry,MultiPolygon):
+            new_geoms=[]
+            for curr_geom in self.geometry.geoms:
+                new_geoms.append(self.offset_feature_polygon(curr_geom, offset=offset))
+                self.geometry=MultiPolygon(new_geoms)
+        else:
+            self.geometry=self.offset_feature_polygon(self.geometry, offset=offset)
             
-    def offset_feature(self, offset={'x':0,'y':0}):
+    def offset_feature_polygon(self, geometry, offset={'x':0,'y':0}):
         """
         adjusts points by offset 
         """
-        lines=[self.geometry.exterior]
-        for hole in self.geometry.interiors:
+        lines=[geometry.exterior]
+        for hole in geometry.interiors:
             lines.append(hole)
         new_lines=[]
         curr_line_coords=[]
@@ -112,7 +127,7 @@ class MultiPolygonFeature(Feature):
             new_lines.append(curr_line_coords)
 
 
-        self.geometry=Polygon(new_lines[0],new_lines[1:])
+        return Polygon(new_lines[0],new_lines[1:])
      #   print 'self.geometry={0}'.format(self.geometry)
         
     def break_into_lines(self):
