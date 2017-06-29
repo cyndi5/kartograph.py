@@ -70,21 +70,39 @@ def parse_proj(opts):
     """
     if 'proj' not in opts:
         opts['proj'] = {}
+    if 'sideproj' not in opts:
+        opts['sideproj'] = {}
     prj = opts['proj']
+    side_prj= opts['sideproj']
     if 'id' not in prj:
         if 'bounds' not in opts:
             prj['id'] = 'robinson'
         else:
             prj['id'] = 'laea'
+    if 'id' not in side_prj:
+        if 'bounds' not in opts:
+            side_prj['id'] = 'robinson'
+        else:
+            side_prj['id'] = 'laea'
     if prj['id'] not in proj.projections:
         raise Error('unknown projection')
+    if side_prj['id'] not in proj.projections:
+        raise Error('unknown side projection')
     prjClass = proj.projections[prj['id']]
+    side_prjClass = proj.projections[side_prj['id']]
     for attr in prjClass.attributes():
         if attr not in prj:
             prj[attr] = "auto"
         else:
             if prj[attr] != "auto":
                 prj[attr] = prj[attr]
+    for attr in side_prjClass.attributes():
+        if attr not in side_prj:
+            side_prj[attr] = "auto"
+        else:
+            if side_prj[attr] != "auto":
+                side_prj[attr] = side_prj[attr]
+
 
 
 def parse_layers(opts):
@@ -143,6 +161,11 @@ def parse_layers(opts):
         parse_layer_cropping(layer)
         parse_layer_offset(layer)
         parse_layer_scale(layer)
+        parse_layer_specialstyle(layer)
+
+def parse_layer_specialstyle(layer):
+    if 'specialstyle' not in layer:
+        layer['specialstyle']=None
 
 def parse_layer_scale(layer):
     if 'scale' not in layer:

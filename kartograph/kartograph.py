@@ -47,6 +47,7 @@ class Kartograph(object):
         # there..
         _map = Map(opts, self.layerCache, format=format)
 
+        stylesheet+=_map.add_styling();
         # Check if the format is handled by a renderer.
         format = format.lower()
         if format in _known_renderer:

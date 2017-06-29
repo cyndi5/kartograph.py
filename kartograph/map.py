@@ -6,13 +6,14 @@ from geometry.utils import bbox_to_polygon
 from geometry.feature import MultiPolygonFeature
 from math import sqrt
 
+
 from copy import deepcopy
 from geometry import BBox, View
 from proj import projections
 from filter import filter_record
 from errors import KartographError
 import sys
-
+import re
 # Map
 # ---
 #
@@ -46,7 +47,7 @@ class Map(object):
             src_encoding = 'utf-8'
         me._source_encoding = src_encoding
 
-        # Construct [MapLayer](maplayer.py) instances for statelayer alone and store references
+        # Construct [MapLayer](maplayer.py) instances  and store references
         # to the layers in a list and a dictionary. 
         # I wish I remember why I split it, should've commented it ...
         for layer_cfg in options['layers']:
@@ -57,20 +58,23 @@ class Map(object):
             me.layers.append(layer)
             me.layersById[layer_id] = layer
 
+        layer = me.layersById['placelayer']
+        layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
+        me._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
+        print 'main_geom={0}'.format(me._main_geom)
         # Initialize the projection that will be used in this map. This sounds easier than
+        
         # it is since we need to compute lot's of stuff here.
         print 'init projection'
         me.proj = me._init_projection()
+        me.side_proj = me._init_side_projection()
         # Compute the bounding geometry for the map.
         me.bounds_poly = me._init_bounds()
         print '**init bounds, me._projected_bounds={0}, me.bounds_poly={1}'.format(me._projected_bounds, me.bounds_poly)
     
     #       First, load the main_geometry of the place we want
       
-        layer = me.layersById['placelayer']
-        layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
-        me._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
-        print 'main_geom={0}'.format(me._main_geom)
+
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected 
 
@@ -78,7 +82,7 @@ class Map(object):
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=(0,0) #me._init_offset
-                #print '\n\n\tlayer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
+               
             else:
                 #print "\n\nNo sidelayer"
                 layer.options["init_offset"]=(0, 0)
@@ -86,17 +90,17 @@ class Map(object):
             if layer.id==me.options['bounds']['data']['sidelayer']:
                 layer.get_features(containing_geom=me._main_geom)
                 #me._side_bounding_geometry=layer.features[0].geometry
-                print 'side bounding geometry bbox={0}'.format(geom_to_bbox(me._side_bounding_geometry))
-                print "done getting features for layer={0}".format(layer.id)
+               # print 'side bounding geometry bbox={0}'.format(geom_to_bbox(me._side_bounding_geometry))
+                #print "done getting features for layer={0}".format(layer.id)
 
        
         
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=(0,0) #me._init_offset
-                print '\n\n\tlayer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
+                print 'layer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
             else:
-                print "\n\nNo sidelayer"
+                print "No sidelayer"
                 layer.options["init_offset"]=(0, 0)
 #            print "getting features for layer={0}".format(layer)
             if layer.id!=me.options['bounds']['data']['sidelayer']:
@@ -155,9 +159,7 @@ class Map(object):
     def _project_to_view(self):
         for layer in self.layers:
             for feature in layer.features:
-                #print 'feature={0}'.format(feature)
                 feature.project_view(self.view)
-                #print 'after proj feature={0}'.format(feature)
     
     # Scale and offset the side features
     def _scale_offset_side_features(self):
@@ -165,7 +167,6 @@ class Map(object):
         self._side_offset=self._get_side_offset()
         mybbox=BBox()
         statebbox=BBox()
-        print 'self._side_offset={0}\n'.format(self._side_offset)
         data = opts['bounds']['data']
         if data['layer'] in self.layersById:
             layer=self.layersById[data['layer']]
@@ -176,7 +177,7 @@ class Map(object):
             if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
                 for feature in layer.features:
                     if isinstance(feature,MultiPolygonFeature):
-                        print 'scaling feature {0}'.format(feature.props['NAME'])
+                        #print 'scaling feature {0}'.format(feature.props['NAME'])
                         if opts['bounds']['scale-sidelayer']=='auto':
                             feature.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
                         else:
@@ -223,7 +224,7 @@ class Map(object):
             if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
                 for feature in layer.features:
                     if isinstance(feature,MultiPolygonFeature):
-                        print 'offsetting feature {0}'.format(feature.props['NAME'])
+                        #print 'offsetting feature {0}'.format(feature.props['NAME'])
                         feature.offset_feature(self._next_side_offset)
                     if layer.id==layer.options['sidelayer']:
                         new_proj_bbox=geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"])
@@ -241,6 +242,8 @@ class Map(object):
         autoLat = 'lat0' in opts['proj'] and opts['proj']['lat0'] == 'auto'
         if autoLon or autoLat:
             map_center = self.__get_map_center()
+            print('main map_center={0}'.format(map_center))
+           
             if autoLon:
                 opts['proj']['lon0'] = map_center[0]
             if autoLat:
@@ -249,7 +252,7 @@ class Map(object):
         # Load the projection class, if the id is known.
         if opts['proj']['id'] in projections:
             projC = projections[opts['proj']['id']]
-            print 'projC={0}'.format(projC)
+            print '*****projC={0}'.format(projC)
         else:
             raise KartographError('projection unknown %s' % opts['proj']['id'])
         # Populate a dictionary of projection properties that
@@ -273,6 +276,7 @@ class Map(object):
         mode = opts['bounds']['mode']
         data = opts['bounds']['data']
 
+        print('bound mode={0}'.format(mode))
         # If the bound mode is set to *bbox* we simply
         # take the mean latitude and longitude as center.
         if mode == 'bbox':
@@ -299,6 +303,91 @@ class Map(object):
             if len(features) > 0:
                 if isinstance(features[0].geom, BaseGeometry):
                     print 'MOOO'
+                    (lon0, lat0) = features[0].geom.representative_point().coords[0]
+                    print 'lon0, lat0={0}'.format((lon0, lat0))
+            else:
+                
+                lon0 = 0
+                lat0 = 0
+        else:
+            if verbose:
+                sys.stderr.write("unrecognized bound mode", mode)
+        return (lon0, lat0)
+
+    def _init_side_projection(self):
+        """
+        ### Initializing the map projection
+        """
+        opts = self.options
+        # If either *lat0* or *lon0* were set to "auto", we need to
+        # compute a nice center of the projection and update the
+        # projection configuration.
+        autoLon = 'lon0' in opts['sideproj'] and opts['sideproj']['lon0'] == 'auto'
+        autoLat = 'lat0' in opts['sideproj'] and opts['sideproj']['lat0'] == 'auto'
+        if autoLon or autoLat:
+            map_center = self.__get_side_map_center()
+            print('side map_center={0}'.format(map_center))
+
+            if autoLon:
+                opts['sideproj']['lon0'] = map_center[0]
+            if autoLat:
+                opts['sideproj']['lat0'] = map_center[1]
+        else:
+            print 'no autolon, autolat in side_map_center'
+        # Load the projection class, if the id is known.
+        if opts['sideproj']['id'] in projections:
+            projC = projections[opts['proj']['id']]
+            print '*****projC={0}'.format(projC)
+        else:
+            raise KartographError('projection unknown %s' % opts['proj']['id'])
+        # Populate a dictionary of projection properties that
+        # will be passed to the projection constructor as keyword
+        # arguments.
+        p_opts = {}
+        for prop in opts['sideproj']:
+            if prop != "id":
+                p_opts[prop] = opts['sideproj'][prop]
+        print "p_opts={0}".format(p_opts)
+        return projC(**p_opts)
+
+    def __get_side_map_center(self):
+        """
+        ### Determining the projection center
+        """
+        print 'map.__get_map_center'
+        # To find out where the map will be centered to we need to
+        # know the geographical boundaries.
+        opts = self.options
+        mode = opts['bounds']['mode']
+        data = opts['bounds']['data']
+
+        print('bound mode={0}'.format(mode))
+        # If the bound mode is set to *bbox* we simply
+        # take the mean latitude and longitude as center.
+        if mode == 'bbox':
+            lon0 = data[0] + 0.5 * (data[2] - data[0])
+            lat0 = data[1] + 0.5 * (data[3] - data[1])
+
+        # If the bound mode is set to *point* we average
+        # over all latitude and longitude coordinates.
+        elif mode[:5] == 'point':
+            lon0 = 0
+            lat0 = 0
+            m = 1 / len(data)
+            for (lon, lat) in data:
+                lon0 += m * lon
+                lat0 += m * lat
+
+        # The computationally worst case is the bound mode
+        # *polygon* since we need to load the shapefile geometry
+        # to compute its center of mass. However, we need
+        # to load it anyway and cache the bounding geometry,
+        # so this comes at low extra cost.
+        elif mode[:4] == 'poly':
+            features = self._get_side_bounding_geometry()
+            if len(features) > 0:
+                if isinstance(features[0].geom, BaseGeometry):
+                    print 'len(features)={0}'.format(len(features))
                     (lon0, lat0) = features[0].geom.representative_point().coords[0]
                     print 'lon0, lat0={0}'.format((lon0, lat0))
             else:
@@ -511,6 +600,7 @@ class Map(object):
                 min_area=data["min-area"],
                 charset=layer.options['charset'],
                 offset=layer.options['offset'],
+                containing_geom=self._main_geom,
                 init_offset=self._init_offset,
                 scale=layer.options['scale'],
                 bounding=True)
@@ -840,3 +930,16 @@ class Map(object):
         nice_w = round(w, -exp)
         bar_w = nice_w / scale
         return (nice_w, bar_w)
+
+    # Add extra CSS from special elements in layers
+    def add_styling(self):
+        ret_style=''
+        temp_style=''
+        for layer in self.layers:
+            opts=layer.options
+            if opts['specialstyle'] is not None and layer.special_fips is not None:
+                temp_style=re.sub('<SPECIAL_FIPS>',layer.special_fips,opts['specialstyle'])
+                print('Adding special styling {0}'.format(temp_style))
+                ret_style = ret_style+ temp_style
+        return ret_style
+        

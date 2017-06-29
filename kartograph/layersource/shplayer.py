@@ -45,16 +45,17 @@ class ShapefileLayer(LayerSource):
                 raise ValueError("Error importing PRJ information from: %s" % prj_file)
             if srs.IsProjected():
                 export_srs=srs.ExportToProj4()   
-  #           print "Groomp"
+                print "Groomp"
 #                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
                 self.proj = pyproj.Proj(export_srs)
             else:
-  #              print "not projected but exists"
+                #print "not projected but exists"
    #            print 'export_srs={0}'.format(export_srs)
                 self.proj = None
+               # export_srs=srs.ExportToProj4()   
 #                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
 #                self.proj=pyproj.Proj(laea, lon0=-76.5893672159, lat0=38.975237
-#                self.proj = pyproj.Proj(export_srs)
+                #self.proj = pyproj.Proj(export_srs)
         else:
             print 'choo'
             self.proj=pyproj.Proj(proj='utm',zone=10,ellps='GRS80')
@@ -150,8 +151,8 @@ class ShapefileLayer(LayerSource):
                     ignored += 1
                     continue
                 intersect_geom=bounding_geom.intersection(geom)
-                if intersect_geom.area>0:
-                    print 'intersect_geom.area={0}'.format(intersect_geom.area)
+               # if intersect_geom.area>0:
+               #     print 'intersect_geom.area={0}'.format(intersect_geom.area)
                 if intersect_geom.area>=self.intersect_tol*geom.area:
                     desired_geom=True
                     #print 'Found intersecting feature {0}'.format(the_feat_name)
@@ -189,8 +190,8 @@ class ShapefileLayer(LayerSource):
                         ignored += 1
                         self.forget_shape(i)
                         continue
-                    else:
-                        print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec)      
+                  #  else:
+                   #     print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec)      
                 else:
                     # If we didn't already set the shape and geom above, we set it here instead
                     shp = self.get_shape(i)
@@ -220,6 +221,7 @@ class ShapefileLayer(LayerSource):
                         print '\tNew largest area intersection, area={0}'.format(curr_intersect.area)
                         max_intersect = curr_intersect.area
                         feature = create_feature(geom, props)
+                        
                         res=[feature]
                         #continue
                 else:

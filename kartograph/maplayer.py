@@ -1,4 +1,4 @@
-
+import re
 from layersource import handle_layer_source
 from filter import filter_record
 from geometry import BBox, create_feature
@@ -16,7 +16,7 @@ class MapLayer(object):
     Represents a layer in the map which contains a list of map features
     """
 
-    def __init__(self, id, options, _map, cache):
+    def __init__(self, id, options, _map, cache, special_fips = None):
         # Store layer properties as instance properties
         print 'maplayer.init'
         self.id = id
@@ -24,6 +24,7 @@ class MapLayer(object):
 #        print 'self.options={0}'.format(self.options)
         self.map = _map
         self.cache = cache
+        self.special_fips = special_fips
         if 'class' not in options:
             self.classes = []
         elif isinstance(options['class'], basestring):
@@ -129,11 +130,18 @@ class MapLayer(object):
             if layer.id=='countylayer':
                 layer.map._side_bounding_geometry=feature.geometry
             # If the features are not projected yet, we project them now (either way it sesms)
-            if not is_projected:
-                feature.project(layer.map.proj)
+            if 'sidelayer' in layer.options:
+                feature.project(layer.map.side_proj)
             else:
                 feature.project(layer.map.proj)
-  
+            curr_fp=''
+            if layer.special_fips is None:
+                for curr_prop in feature.props:
+                    temp_fp=(re.search('FP',curr_prop))
+                    if temp_fp is not None and len(temp_fp.group(0))>len(curr_fp):
+                        layer.special_fips=feature.props[curr_prop]
+                        curr_fp=temp_fp.group(0)
+            
   
 
             #It's after this point that we want to adjust the features with scaling and such
