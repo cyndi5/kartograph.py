@@ -131,6 +131,7 @@ class MapLayer(object):
                 layer.map._side_bounding_geometry=feature.geometry
             # If the features are not projected yet, we project them now (either way it sesms)
             if 'sidelayer' in layer.options:
+                #print 'projecting with side_proj'
                 feature.project(layer.map.side_proj)
             else:
                 feature.project(layer.map.proj)

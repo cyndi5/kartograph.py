@@ -68,6 +68,7 @@ class Map(object):
         print 'init projection'
         me.proj = me._init_projection()
         me.side_proj = me._init_side_projection()
+        #print '**me.side_proj={0}'.format(me.side_proj)
         # Compute the bounding geometry for the map.
         me.bounds_poly = me._init_bounds()
         print '**init bounds, me._projected_bounds={0}, me.bounds_poly={1}'.format(me._projected_bounds, me.bounds_poly)
@@ -407,7 +408,8 @@ class Map(object):
 
         opts = self.options
         proj = self.proj
-        print '  proj={0}'.format(proj)
+        side_proj = self.side_proj
+        print '  proj={0}, side_proj={1}'.format(proj, side_proj)
         mode = opts['bounds']['mode'][:]
         data = opts['bounds']['data']
         padding_dict = opts['bounds']['padding-dict']
@@ -449,7 +451,7 @@ class Map(object):
             if len(features) > 0:
                 for feature in features:
                     ubbox.join(geom_to_bbox(feature.geometry))
-                    feature.project(proj)
+                    feature.project(self.side_proj)
                     fbbox = geom_to_bbox(feature.geometry, data["min-area"])
                     bbox.join(fbbox)
   #              # Save the unprojected bounding box for later to
@@ -466,7 +468,7 @@ class Map(object):
                 self._side_bounding_geometry = side_features[0].geom
                 side_ubbox.join(geom_to_bbox(side_features[0].geometry))
                 side2=deepcopy(side_features[0])
-                side2.project(proj)
+                side2.project(self.side_proj)
                 side_fbbox=geom_to_bbox(side2.geometry, data["min-area"])
                 side_bbox.join(side_fbbox)
                 self._side_projected_bounds=side_bbox
