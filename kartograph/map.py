@@ -61,17 +61,17 @@ class Map(object):
         layer = me.layersById['placelayer']
         layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
         me._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
-        print 'main_geom={0}'.format(me._main_geom)
+        #print 'main_geom={0}'.format(me._main_geom)
         # Initialize the projection that will be used in this map. This sounds easier than
         
         # it is since we need to compute lot's of stuff here.
-        print 'init projection'
+        #print 'init projection'
         me.proj = me._init_projection()
         me.side_proj = me._init_side_projection()
         #print '**me.side_proj={0}'.format(me.side_proj)
         # Compute the bounding geometry for the map.
         me.bounds_poly = me._init_bounds()
-        print '**init bounds, me._projected_bounds={0}, me.bounds_poly={1}'.format(me._projected_bounds, me.bounds_poly)
+        #print '**init bounds, me._projected_bounds={0}, me.bounds_poly={1}'.format(me._projected_bounds, me.bounds_poly)
     
     #       First, load the main_geometry of the place we want
       
@@ -99,14 +99,14 @@ class Map(object):
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=(0,0) #me._init_offset
-                print 'layer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
+                #print 'layer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
             else:
-                print "No sidelayer"
+                #print "No sidelayer"
                 layer.options["init_offset"]=(0, 0)
 #            print "getting features for layer={0}".format(layer)
             if layer.id!=me.options['bounds']['data']['sidelayer']:
                 layer.get_features()
-                print "done getting features for layer={0}".format(layer.id)
+                #print "done getting features for layer={0}".format(layer.id)
         # initialize the projected bounds of the main layer and the sidelayer
         me._auto_scale_factor=me._init_projected_bounds()
         
@@ -194,31 +194,31 @@ class Map(object):
         #TODO: ensure this is countylayer?
         # Check that the layer exists.
         if id not in self.layersById:
-            print 'sidelayer not found'
+            #print 'sidelayer not found'
             raise KartographError('layer not found "%s"' % id)
             #return (0,0)
         temp_layer = self.layersById[id]
-        print 'statebbox={0}'.format(statebbox)
+        #print 'statebbox={0}'.format(statebbox)
         self._side_projected_bounds=mybbox
         self._projected_bounds=statebbox
-        print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
+        #print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
       
 
-        print 'Pre-second offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
+        #print 'Pre-second offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
 
         #Choose whether to put sidelayer on side or below, depending
         
         if self._projected_bounds.width <= self._projected_bounds.height:
             # Add a little breathing room on the left
-            print 'Adding on left'
+            #print 'Adding on left'
             self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/6.-self._side_projected_bounds.width
             self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top+self._projected_bounds.height/2-self._side_projected_bounds.height/2.
         else:
             # Add some breathing room on the bottom
-            print 'Adding on bottom'
+            #print 'Adding on bottom'
             self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.bottom+self._projected_bounds.height/6.
             self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left+self._projected_bounds.width/2.-self._side_projected_bounds['width']/2.
-        print 'self._next_side_offset={0}'.format(self._next_side_offset)
+        #print 'self._next_side_offset={0}'.format(self._next_side_offset)
          # transform to offset the sidelayers
         new_proj_bbox=BBox()
         for layer in self.layers:
@@ -243,7 +243,7 @@ class Map(object):
         autoLat = 'lat0' in opts['proj'] and opts['proj']['lat0'] == 'auto'
         if autoLon or autoLat:
             map_center = self.__get_map_center()
-            print('main map_center={0}'.format(map_center))
+            #print('main map_center={0}'.format(map_center))
            
             if autoLon:
                 opts['proj']['lon0'] = map_center[0]
@@ -253,7 +253,7 @@ class Map(object):
         # Load the projection class, if the id is known.
         if opts['proj']['id'] in projections:
             projC = projections[opts['proj']['id']]
-            print '*****projC={0}'.format(projC)
+            #print '*****projC={0}'.format(projC)
         else:
             raise KartographError('projection unknown %s' % opts['proj']['id'])
         # Populate a dictionary of projection properties that
@@ -263,21 +263,21 @@ class Map(object):
         for prop in opts['proj']:
             if prop != "id":
                 p_opts[prop] = opts['proj'][prop]
-        print "p_opts={0}".format(p_opts)
+        #print "p_opts={0}".format(p_opts)
         return projC(**p_opts)
 
     def __get_map_center(self):
         """
         ### Determining the projection center
         """
-        print 'map.__get_map_center'
+        #print 'map.__get_map_center'
         # To find out where the map will be centered to we need to
         # know the geographical boundaries.
         opts = self.options
         mode = opts['bounds']['mode']
         data = opts['bounds']['data']
 
-        print('bound mode={0}'.format(mode))
+        #print('bound mode={0}'.format(mode))
         # If the bound mode is set to *bbox* we simply
         # take the mean latitude and longitude as center.
         if mode == 'bbox':
@@ -303,9 +303,9 @@ class Map(object):
             features = self._get_bounding_geometry()
             if len(features) > 0:
                 if isinstance(features[0].geom, BaseGeometry):
-                    print 'MOOO'
+                    #print 'MOOO'
                     (lon0, lat0) = features[0].geom.representative_point().coords[0]
-                    print 'lon0, lat0={0}'.format((lon0, lat0))
+                    #print 'lon0, lat0={0}'.format((lon0, lat0))
             else:
                 
                 lon0 = 0
@@ -327,7 +327,7 @@ class Map(object):
         autoLat = 'lat0' in opts['sideproj'] and opts['sideproj']['lat0'] == 'auto'
         if autoLon or autoLat:
             map_center = self.__get_side_map_center()
-            print('side map_center={0}'.format(map_center))
+            #print('side map_center={0}'.format(map_center))
 
             if autoLon:
                 opts['sideproj']['lon0'] = map_center[0]
@@ -338,7 +338,7 @@ class Map(object):
         # Load the projection class, if the id is known.
         if opts['sideproj']['id'] in projections:
             projC = projections[opts['proj']['id']]
-            print '*****projC={0}'.format(projC)
+            #print '*****projC={0}'.format(projC)
         else:
             raise KartographError('projection unknown %s' % opts['proj']['id'])
         # Populate a dictionary of projection properties that
@@ -348,7 +348,7 @@ class Map(object):
         for prop in opts['sideproj']:
             if prop != "id":
                 p_opts[prop] = opts['sideproj'][prop]
-        print "p_opts={0}".format(p_opts)
+        #print "p_opts={0}".format(p_opts)
         return projC(**p_opts)
 
     def __get_side_map_center(self):

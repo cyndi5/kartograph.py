@@ -37,7 +37,7 @@ class Kartograph(object):
         Generates a the map and renders it using the specified output format.
         """
         if preview is None:
-            preview = outfile is None
+            preview = False#outfile is None
 
         # Create a deep copy of the options dictionary so our changes will not be
         # visible to the calling application.
@@ -64,9 +64,15 @@ class Kartograph(object):
                 if 'PLACEFP' in feature.props and feature.props['PLACEFP']==curr_place: # this is highlighting place
                     curr_place_name=re.sub('\s','_',feature.props['NAME'])
                     
-                print('feature.props={0}'.format(feature.props))
+                #print('feature.props={0}'.format(feature.props))
         alt_outfile=countyalt_file+'_'+curr_state_name+'_Incorporated_and_Unincorporated_areas_'+curr_place_name+'_Highlighted.svg'
-        print('alt_outfile={0}'.format(alt_outfile))
+        #print('alt_outfile={0}'.format(alt_outfile))
+        if outfile is None:
+            outfile=alt_outfile # use the alt outfile if nothing else specified
+            print 'outfile was None, now={0}'.format(outfile)
+        else:
+            print('outfile={0}'.format(outfile))
+            
         stylesheet+=_map.add_styling();
         # Check if the format is handled by a renderer.
         format = format.lower()
