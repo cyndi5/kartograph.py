@@ -95,7 +95,7 @@ class ShapefileLayer(LayerSource):
             self.shapes.pop(i)
 
             
-    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0), bounding_geom=None, containing_geom=None):
+    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0), bounding_geom=None, contained_geom=None):
         """
         ### Get features
         """
@@ -104,8 +104,8 @@ class ShapefileLayer(LayerSource):
         self.offset=offset
         self.scale=scale
         max_intersect=0
-        if containing_geom is None:
-            print '\t\tcontaining_geom is None'
+        if contained_geom is None:
+            print '\t\tcontained_geom is None'
         if bounding_geom is None:
             print '\t\tbounding_geom is None'
         #print 'get_features, self.offset={0}'.format(self.offset)
@@ -159,7 +159,7 @@ class ShapefileLayer(LayerSource):
             # Check for sufficient intersection to add places automatically
                 drec['DESIRED_GEOM']=True
             if filter is None or filter(drec):
-                #if containing_geom is not None:
+                #if contained_geom is not None:
                  #   print '\tIn for the_feat_name {0}'.format(drec['NAME'])
                 props = {}
                 # ..we try to decode the attributes (shapefile charsets are arbitrary)
@@ -205,12 +205,12 @@ class ShapefileLayer(LayerSource):
                         continue
                     
             
-                if containing_geom is not None:
+                if contained_geom is not None:
                     #print 'Checking county {0}'.format(drec['NAME'])
                     # Find if it's the most intersecting of the geometries with
-                    # containing_geom (which should really be contained_geom but haven't
+                    # contained_geom (which should really be contained_geom but haven't
                     # changed yet)
-                    curr_intersect=containing_geom.intersection(geom)
+                    curr_intersect=contained_geom.intersection(geom)
                     if curr_intersect.area<=max_intersect:
                        # print '\tfail: curr_intersect.area={0}'.format(curr_intersect.area)
                         ignored += 1

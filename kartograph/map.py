@@ -89,7 +89,7 @@ class Map(object):
                 layer.options["init_offset"]=(0, 0)
 #            print "getting features for layer={0}".format(layer)
             if layer.id==me.options['bounds']['data']['sidelayer']:
-                layer.get_features(containing_geom=me._main_geom)
+                layer.get_features(contained_geom=me._main_geom)
                 #me._side_bounding_geometry=layer.features[0].geometry
                # print 'side bounding geometry bbox={0}'.format(geom_to_bbox(me._side_bounding_geometry))
                 #print "done getting features for layer={0}".format(layer.id)
@@ -602,7 +602,7 @@ class Map(object):
                 min_area=data["min-area"],
                 charset=layer.options['charset'],
                 offset=layer.options['offset'],
-                containing_geom=self._main_geom,
+                contained_geom=self._main_geom,
                 init_offset=self._init_offset,
                 scale=layer.options['scale'],
                 bounding=True)

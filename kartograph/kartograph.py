@@ -6,6 +6,7 @@ from copy import deepcopy
 from renderer import SvgRenderer
 from mapstyle import MapStyle
 from map import Map
+import re
 import os
 
 
@@ -22,8 +23,11 @@ _known_renderer = {
 
 
 class Kartograph(object):
+   
     def __init__(self):
         self.layerCache = {}
+        self.lsad_map={'06': 'County', '15': 'Parish'}
+        self.state_fips={'17': 'Illinois','22': 'Louisiana'}
         pass
 
     # new render field to provide an option for rendering wiki places without
@@ -46,13 +50,23 @@ class Kartograph(object):
         # definitely should check out [map.py](map.html) for all the fun stuff happending
         # there..
         alt_outfile=''
+        countyalt_file=''
+        curr_place_name=''
+        curr_state_name=''
         _map = Map(opts, self.layerCache, format=format)
         for layer in _map.layers:
             if layer.id=='countylayer':
                 # should be just one feature 
                 feature = layer.features[0]
+                countyalt_file=countyalt_file+feature.props['NAME']+'_'+self.lsad_map[feature.props['LSAD']]
+                curr_state_name=self.state_fips[feature.props['STATEFP']]
             for feature in layer.features:
-                print('feature.props={0}'.format(feature.props['NAME']))
+                if 'PLACEFP' in feature.props and feature.props['PLACEFP']==curr_place: # this is highlighting place
+                    curr_place_name=re.sub('\s','_',feature.props['NAME'])
+                    
+                print('feature.props={0}'.format(feature.props))
+        alt_outfile=countyalt_file+'_'+curr_state_name+'_Incorporated_and_Unincorporated_areas_'+curr_place_name+'_Highlighted.svg'
+        print('alt_outfile={0}'.format(alt_outfile))
         stylesheet+=_map.add_styling();
         # Check if the format is handled by a renderer.
         format = format.lower()

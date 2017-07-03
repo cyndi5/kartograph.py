@@ -37,7 +37,7 @@ class MapLayer(object):
         # Instantiate the layer source which will generate features from the source
         # geo data such as shapefiles or virtual sources such as graticule lines.
         self.source = handle_layer_source(self.options, self.cache)
-    def get_features(layer, filter=False, min_area=0, containing_geom=None):
+    def get_features(layer, filter=False, min_area=0, contained_geom=None):
         """
         ### get_features()
         Returns a list of projected and filtered features of a layer.
@@ -96,7 +96,7 @@ class MapLayer(object):
                 charset=layer.options['charset'], offset=layer.options['offset'], scale=layer.options['scale'], 
                 init_offset=layer.options['init_offset'],
                 bounding_geom=bounding_geom,
-                containing_geom=containing_geom
+                contained_geom=contained_geom
             )
             if _verbose:
                 #print 'loaded %d features from shapefile %s' % (len(features), layer.options['src'])
