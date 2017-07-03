@@ -28,7 +28,7 @@ class Kartograph(object):
 
     # new render field to provide an option for rendering wiki places without
     # destroying rest of code
-    def generate(self, opts, outfile=None, format='svg', preview=None, stylesheet=None, render_format='wikiplace'):
+    def generate(self, opts, outfile=None, format='svg', preview=None, stylesheet=None, render_format='wikiplace', curr_place=00000):
         """
         Generates a the map and renders it using the specified output format.
         """
@@ -45,8 +45,14 @@ class Kartograph(object):
         # Create the map instance. It will do all the hard work for us, so you
         # definitely should check out [map.py](map.html) for all the fun stuff happending
         # there..
+        alt_outfile=''
         _map = Map(opts, self.layerCache, format=format)
-
+        for layer in _map.layers:
+            if layer.id=='countylayer':
+                # should be just one feature 
+                feature = layer.features[0]
+            for feature in layer.features:
+                print('feature.props={0}'.format(feature.props['NAME']))
         stylesheet+=_map.add_styling();
         # Check if the format is handled by a renderer.
         format = format.lower()
