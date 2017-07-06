@@ -42,10 +42,10 @@ class MapLayer(object):
         Returns a list of projected and filtered features of a layer.
         """
         opts = layer.map.options
-        print 'Getting features for layer.id={0}'.format(layer.id)
+     #   print 'Getting features for layer.id={0}'.format(layer.id)
 #        print 'layer.map.options={0}'.format(layer.map.options)
         is_projected = False # should this be left?
-        print 'First Hash of layer.map._side_bounding_geometry={0}'.format(hash(str(layer.map._side_bounding_geometry)))
+      #  print 'First Hash of layer.map._side_bounding_geometry={0}'.format(hash(str(layer.map._side_bounding_geometry)))
         bounding_geom=None
         # Let's see if theres a better bounding box than this..
         bbox = [-180, -90, 180, 90]
@@ -63,7 +63,6 @@ class MapLayer(object):
             # will use the actual bounding geometry to compute the bounding box
             if opts['bounds']['crop'] == "auto":
                 if layer.map._unprojected_bounds:
-#                    print 'computing inflate stuff'
                     bbox = layer.map._unprojected_bounds
                     bbox.inflate(inflate=1,pad_dict = opts['bounds']['padding-dict'])
                 elif _verbose:
@@ -76,7 +75,7 @@ class MapLayer(object):
             if "sidelayer" in layer.options and opts['bounds']['data']['sidelayer']!=layer.id and layer.map._side_bounding_geometry is not None:
                 # We are cropping based on whether it's in the sidelayer
                 bounding_geom=layer.map._side_bounding_geometry
-                print('\tSetting bounding_geom to side_bounding_geometry, hash of which is {0}'.format(hash(str(bounding_geom))))
+                #print('\tSetting bounding_geom to side_bounding_geometry, hash of which is {0}'.format(hash(str(bounding_geom))))
         # If the layer has the "src" property, it is a **regular map layer** source, which
         # means that there's an exernal file that we load the geometry and meta data from.
         if 'src' in layer.options:
@@ -116,7 +115,7 @@ class MapLayer(object):
                 features = layer.source.get_features(layer.map.proj)
                 is_projected = True
         
-        print 'Finished with shapelayer call'#.format(len(features))
+        #print 'Finished with shapelayer call'#.format(len(features))
 
         # Add bounding_geom to features, see what happens */
        # if bounding_geom is not None:
@@ -153,4 +152,4 @@ class MapLayer(object):
 #            features = [feature for feature in features
 #            if feature.geometry and feature.geometry.intersects(layer.map.view_poly)]
         layer.features = features
-        print 'len of features={0}'.format(len(layer.features))
+        #print 'len of features={0}'.format(len(layer.features))

@@ -45,19 +45,17 @@ class ShapefileLayer(LayerSource):
                 raise ValueError("Error importing PRJ information from: %s" % prj_file)
             if srs.IsProjected():
                 export_srs=srs.ExportToProj4()   
-                print "Groomp"
+                #print "Groomp"
 #                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
                 self.proj = pyproj.Proj(export_srs)
             else:
-                #print "not projected but exists"
-   #            print 'export_srs={0}'.format(export_srs)
                 self.proj = None
                # export_srs=srs.ExportToProj4()   
 #                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
 #                self.proj=pyproj.Proj(laea, lon0=-76.5893672159, lat0=38.975237
                 #self.proj = pyproj.Proj(export_srs)
         else:
-            print 'choo'
+            #print 'choo'
             self.proj=pyproj.Proj(proj='utm',zone=10,ellps='GRS80')
            #   
             #self.proj = pyproj.Proj(init='epsg:26915')
@@ -104,13 +102,10 @@ class ShapefileLayer(LayerSource):
         self.offset=offset
         self.scale=scale
         max_intersect=0
-        if contained_geom is None:
-            print '\t\tcontained_geom is None'
-        if bounding_geom is None:
-            print '\t\tbounding_geom is None'
-        #print 'get_features, self.offset={0}'.format(self.offset)
- #       print 'self.recs={0}\nself.attributes={1}'.format(self.recs,self.attributes)
-#        print 'type(self)={0}'.format(type(self))
+        #if contained_geom is None:
+        #    print '\t\tcontained_geom is None'
+        #if bounding_geom is None:
+        #    print '\t\tbounding_geom is None'
         # We will try these encodings..
         known_encodings = ['utf-8', 'latin-1', 'iso-8859-2', 'iso-8859-15']
         try_encodings = [charset]
@@ -121,7 +116,7 @@ class ShapefileLayer(LayerSource):
         if bbox is not None and not isinstance(bbox, BBox):
             bbox = BBox(bbox[2] - bbox[0], bbox[3] - bbox[1], bbox[0], bbox[1])
         ignored = 0
-        print 'len(self.recs)={0}'.format(len(self.recs))
+        #print 'len(self.recs)={0}'.format(len(self.recs))
         for i in range(0, len(self.recs)):
             # Read all record attributes
             drec = {}
@@ -211,14 +206,14 @@ class ShapefileLayer(LayerSource):
                     # contained_geom (which should really be contained_geom but haven't
                     # changed yet)
                     curr_intersect=contained_geom.intersection(geom)
-                    if curr_intersect.area<=max_intersect and curr_intersect.area==0:
+                    if curr_intersect.area==0:
                        # print '\tfail: curr_intersect.area={0}'.format(curr_intersect.area)
                         ignored += 1
                         self.forget_shape(i)
                         #continue
                     else:
                         # Set this to be the new intersection level
-                        print '\tNew largest area intersection, area={0}'.format(curr_intersect.area)
+                        #print '\tNew largest area intersection, area={0}'.format(curr_intersect.area)
                         max_intersect = curr_intersect.area
                         feature = create_feature(geom, props)
                         

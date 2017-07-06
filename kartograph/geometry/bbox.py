@@ -33,6 +33,7 @@ class BBox(object):
         self.ymax = max(self.ymax, pt.y)
 
 
+
         self.left = self.xmin
         self.top = self.ymin
         self.right = self.xmax

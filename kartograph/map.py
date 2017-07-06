@@ -81,7 +81,7 @@ class Map(object):
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected 
 
-        print 'me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
+        #print 'me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=(0,0) #me._init_offset
@@ -93,10 +93,10 @@ class Map(object):
                 layer.get_features(contained_geom=me._main_geom)
                 #me._side_bounding_geometry=layer.features[0].geometry
                # print 'side bounding geometry bbox={0}'.format(geom_to_bbox(me._side_bounding_geometry))
-                print "done getting features for layer={0}".format(layer.id)
+#                print "done getting features for layer={0}".format(layer.id)
 
        
-        print 'Next me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
+#        print 'Next me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=(0,0) #me._init_offset
@@ -115,6 +115,7 @@ class Map(object):
         
         # scale and offset the side features
         me._scale_offset_side_features()
+        
         # Do the view AFTER projecting 
         me.view = me._get_view()
         # Get the polygon (in fact it's a rectangle in most cases) that will be used
@@ -150,7 +151,7 @@ class Map(object):
             layer=self.layersById[data['sidelayer']]
             for feature in layer.features:
                 sidelayer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
-        self._side_projected_bounds=geom_to_bbox(self._side_bounding_geometry)
+        #self._side_projected_bounds=geom_to_bbox(self._side_bounding_geometry)
         #sidelayer_bbox
         if data['layer'] in self.layersById:
             layer=self.layersById[data['layer']]
@@ -188,10 +189,18 @@ class Map(object):
                             feature.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
                         else:
                             feature.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
-                    if layer.id==layer.options['sidelayer']:
-                            mybbox.join(geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"]))
+                        if layer.id==layer.options['sidelayer']:
+                            temp_bbox=geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"])
+                            print 'adding to mybbox, {0}, {1}'.format(feature.properties['NAME'], temp_bbox)
+                            mybbox.join(temp_bbox)
+                            print 'mybbox={0}'.format(mybbox)
+                           # print 'xmin, ymin, xmax, ymax={0},{1},{2},{3}'.format(mybbox.xmin,mybbox.ymin,mybbox.xmax,mybbox.ymax)   
 
+        # Create a dummy feature to scale the side bounding geometry
 
+        temp_feat=create_feature(self._side_bounding_geometry,{})
+        temp_feat.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
+        self._side_bounding_geometry=temp_feat.geometry
         # We need to set the view up and project AFTER all this
 
     
@@ -206,6 +215,7 @@ class Map(object):
         #print 'statebbox={0}'.format(statebbox)
         self._side_projected_bounds=mybbox
         self._projected_bounds=statebbox
+        print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
         #print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
       
 
@@ -233,7 +243,7 @@ class Map(object):
                         #print 'offsetting feature {0}'.format(feature.props['NAME'])
                         feature.offset_feature(self._next_side_offset)
                     if layer.id==layer.options['sidelayer']:
-                        new_proj_bbox=geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"])
+                        new_proj_bbox.join(geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"]))
         self._side_projected_bounds=new_proj_bbox
   
     def _init_projection(self):
@@ -307,7 +317,7 @@ class Map(object):
         elif mode[:4] == 'poly':
             features = self._get_bounding_geometry()
 
-            print 'len(features in bounding)={0}'.format(len(features))
+            #print 'len(features in bounding)={0}'.format(len(features))
             if len(features) > 0:
                 if isinstance(features[0].geom, BaseGeometry):
                     #print 'MOOO'
@@ -362,14 +372,14 @@ class Map(object):
         """
         ### Determining the projection center
         """
-        print 'map.__get_map_center'
+        #print 'map.__get_map_center'
         # To find out where the map will be centered to we need to
         # know the geographical boundaries.
         opts = self.options
         mode = opts['bounds']['mode']
         data = opts['bounds']['data']
 
-        print('bound mode={0}'.format(mode))
+        #print('bound mode={0}'.format(mode))
         # If the bound mode is set to *bbox* we simply
         # take the mean latitude and longitude as center.
         if mode == 'bbox':
@@ -393,12 +403,12 @@ class Map(object):
         # so this comes at low extra cost.
         elif mode[:4] == 'poly':
             features = self._get_side_bounding_geometry()
-            print 'len(features in side bounding)={0}'.format(len(features))
+            #print 'len(features in side bounding)={0}'.format(len(features))
             if len(features) > 0:
                 if isinstance(features[0].geom, BaseGeometry):
-                    print 'len(features)={0}'.format(len(features))
+                    #print 'len(features)={0}'.format(len(features))
                     (lon0, lat0) = features[0].geom.representative_point().coords[0]
-                    print 'lon0, lat0={0}'.format((lon0, lat0))
+                    #print 'lon0, lat0={0}'.format((lon0, lat0))
             else:
                 
                 lon0 = 0
@@ -417,11 +427,11 @@ class Map(object):
         opts = self.options
         proj = self.proj
         side_proj = self.side_proj
-        print '  proj={0}, side_proj={1}'.format(proj, side_proj)
+        #print '  proj={0}, side_proj={1}'.format(proj, side_proj)
         mode = opts['bounds']['mode'][:]
         data = opts['bounds']['data']
         padding_dict = opts['bounds']['padding-dict']
-        print 'init_bounds: mode={0}, data={1}'.format(mode, data)
+        #print 'init_bounds: mode={0}, data={1}'.format(mode, data)
         if 'padding' not in opts['bounds']:
             padding = 0. # CHANGED from 0
         else:
@@ -464,7 +474,7 @@ class Map(object):
                     bbox.join(fbbox)
   #              # Save the unprojected bounding box for later to
   #              # determine what features can be skipped.
-                print 'ubbox={0}'.format(ubbox)
+                #print 'ubbox={0}'.format(ubbox)
             else:
                 raise KartographError('no features found for calculating the map bounds')
 
@@ -472,17 +482,23 @@ class Map(object):
            
             side_features = self._get_side_bounding_geometry()
             if len(side_features) > 0:
-                print "Found_side features, len={0}".format(len(side_features))
-                self._side_bounding_geometry = deepcopy(side_features[0].geom)
-                side_ubbox.join(geom_to_bbox(side_features[0].geometry))
+                #print "Found_side features, len={0}".format(len(side_features))
+                self._side_bounding_geometry = deepcopy(side_features[0].geometry)
                 side2=deepcopy(side_features[0])
-                side2.project(self.side_proj)
-                side_fbbox=geom_to_bbox(side2.geometry, data["min-area"])
-                side_bbox.join(side_fbbox)
-                self._side_projected_bounds=side_bbox
-                print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
-            else:
-                print "Cannot find side features\n"
+                
+                for feat in side_features:
+                    y=0
+                    self._side_bounding_geometry=self._side_bounding_geometry.union(feat.geometry)
+                  #  side2.geometry = side2.geometry.union(feat.geometry)
+                   # side_ubbox.join(geom_to_bbox(feat.geometry))
+                
+                #side2.project(self.side_proj)
+                #side_fbbox=geom_to_bbox(side2.geometry, data["min-area"])
+                #side_bbox.join(side_fbbox)
+                #self._side_projected_bounds=side_bbox
+                #print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
+            #else:
+             #   print "Cannot find side features\n"
         # If we need some extra geometry around the map bounds, we inflate
         # the bbox according to the set *padding*.
                            
@@ -505,7 +521,7 @@ class Map(object):
         returns a list of all geometry that the map should
         be cropped to.
         """
-        print ''
+        #print ''
     #    proj = self.proj
 
         # Use the cached geometry, if available.
@@ -522,7 +538,7 @@ class Map(object):
             raise KartographError('layer not found "%s"' % id)
         layer = self.layersById[id]
         
-        print 'map._get_bounding_geometry,\tid={0}'.format(id)
+        #print 'map._get_bounding_geometry,\tid={0}'.format(id)
         # Construct the filter function of the layer, which specifies
         # what features should be excluded from the map completely.
         if layer.options['filter'] is False:
@@ -544,7 +560,7 @@ class Map(object):
         filter = lambda rec: layerFilter(rec) and boundsFilter(rec)
         # Load the features from the layer source (e.g. a shapefile).
 
-        print 'Getting features for id={0}'.format(id)
+        #print 'Getting features for id={0}'.format(id)
         features.extend(layer.source.get_features(
                 filter=filter,
                 min_area=data["min-area"],
@@ -568,7 +584,7 @@ class Map(object):
         For bounds mode "*polygons*" this helper function
         returns the offset required as a result of scaling the side layer
         """
-        print 'map._get_side_bounding_geometry'
+        #print 'map._get_side_bounding_geometry'
 #        proj = self.proj
 
 
@@ -579,7 +595,7 @@ class Map(object):
         #TODO: ensure this is countylayer?
         # Check that the layer exists.
         if id not in self.layersById:
-            print 'sidelayer not found'
+            #print 'sidelayer not found'
             return (0,0)
 #            raise KartographError('layer not found "%s"' % id)
         layer = self.layersById[id]
@@ -616,7 +632,7 @@ class Map(object):
                 scale=layer.options['scale'],
                 bounding=True)
                         )
-        print 'Done getting side bounding, features.len={0}'.format(len(features))
+        #print 'Done getting side bounding, features.len={0}'.format(len(features))
         temp_feat=features[0].geom
         for curr_feat in features:
             temp_feat=temp_feat.union(curr_feat.geom)
@@ -630,7 +646,7 @@ class Map(object):
     
     def _get_side_offset(self):
   
-        print 'map._get_side_offset'
+        #print 'map._get_side_offset'
 #        proj = self.proj
 
 
@@ -641,22 +657,22 @@ class Map(object):
         #TODO: ensure this is countylayer?
         # Check that the layer exists.
         if id not in self.layersById:
-            print 'sidelayer not found'
+            #print 'sidelayer not found'
             return (0,0)
 #            raise KartographError('layer not found "%s"' % id)
         layer = self.layersById[id]
 
         ret_offset={'x':0,'y':0}
 
-        print '&&&&layer.id={0}'.format(layer.id)
+        #print '&&&&layer.id={0}'.format(layer.id)
         # Get the first feature and determine the offset as a result of scaling it
         if len(layer.features)>0:
             feature=layer.features[0]
-            print 'len(layer.features)={0}'.format(len(layer.features))
-        else:
-            print 'len(layer.features)={0}'.format(len(layer.features))
+            #print 'len(layer.features)={0}'.format(len(layer.features))
+        #else:
+        #    print 'len(layer.features)={0}'.format(len(layer.features))
         if isinstance(feature,MultiPolygonFeature):
-            print 'Computing scale factor with layer.id={0},layer.options[\'scale\']={1}'.format(layer.id,layer.options['scale'])
+            #print 'Computing scale factor with layer.id={0},layer.options[\'scale\']={1}'.format(layer.id,layer.options['scale'])
             if opts['bounds']['scale-sidelayer']=='auto':
                 ret_offset=feature.get_scale_offset(scale_factor=self._auto_scale_factor)
             else:
@@ -673,8 +689,9 @@ class Map(object):
         """
         # Compute the bounding box of the bounding polygons.
         bbox = deepcopy(self._projected_bounds)
-        bbox.join(self._side_projected_bounds)      #geom_to_bbox(self.projec)
+        bbox.join(deepcopy(self._side_projected_bounds))      #geom_to_bbox(self.projec)
         self.src_bbox = bbox
+        print 'bbox.width={0}, bbox.height={1}, prod={2}'.format(bbox.width,bbox.height,bbox.width*bbox.height)
         print 'self._projected_bounds={0}, self._side_projected_bounds={1}, bbox={2}'.format(self._projected_bounds,self._side_projected_bounds, bbox)
 
         exp = self.options["export"]
@@ -928,7 +945,7 @@ class Map(object):
         """
         computes the width of the map (at the lower boundary) in projection units (typically meters)
         """
-        print 'Computing map scale'
+        #print 'Computing map scale'
         p0 = (0, me.view.height)
         p1 = (me.view.width, p0[1])
         p0 = me.view.project_inverse(p0)
@@ -938,7 +955,6 @@ class Map(object):
         return dist / me.view.width
 
     def scale_bar_width(me):
-        print 'in scale_bar_width'
         from math import log
         scale = me.compute_map_scale()
         w = (me.view.width * 0.2) * scale

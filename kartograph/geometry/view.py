@@ -20,6 +20,7 @@ class View(object):
             width_ratio = (width - padding * 2)/bbox.width
             height_ratio = (height - padding * 2)/bbox.height
             self.scale = min(width_ratio, height_ratio)
+            print 'width_ratio={0}, height_ratio={1}'.format(width_ratio, height_ratio)
             if width_ratio < height_ratio:
                 self.height = ceil(bbox.height*self.scale)+2*padding
             else:

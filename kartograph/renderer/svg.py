@@ -67,7 +67,8 @@ class SvgRenderer(MapRenderer):
 
     def _render_feature(self, feature, attributes=[], labelOpts=False, offset={'x':0, 'y':0}, scale=1., is_county=False):
         if feature.geometry is None:
-            print 'Geometry of {0} is none!'.format(feature.properties) 
+            print 'Geometry of {0} is none!'.format(feature.properties['NAME'])
+            return None
         node = self._render_geometry(feature.geometry,offset, scale, is_county)
         if node is None:
             print 'node is None!!!!'
@@ -106,7 +107,7 @@ class SvgRenderer(MapRenderer):
     def _render_geometry(self, geometry, offset, scale, is_county):
         from shapely.geometry import Polygon, MultiPolygon, LineString, MultiLineString, Point
         if geometry is None:
-            print 'Geometry is none!' 
+            #print 'Geometry is none!' 
             return
         if isinstance(geometry, (Polygon, MultiPolygon)):
             return self._render_polygon(geometry, offset, scale, is_county)
@@ -205,7 +206,7 @@ class SvgRenderer(MapRenderer):
         svg = self.svg
         # label_groups = []
         for layer in self.map.layers:
-            print 'Rendering layer {0}'.format(layer.id)
+            #print 'Rendering layer {0}'.format(layer.id)
 #            for x in layer.options:
  #               print 'layer.options[{0}]={1}'.format(x,layer.options[x])
             if len(layer.features) == 0:

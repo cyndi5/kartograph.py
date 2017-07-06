@@ -48,9 +48,9 @@ class MultiPolygonFeature(Feature):
         temp_offset={}
         new_x=0
         new_y=0
-        print 'in offset, len(lines)={0}'.format(len(lines))
+        #print 'in offset, len(lines)={0}'.format(len(lines))
         if len(lines)>0 and len(lines[0].coords)>0:
-            print '@@doing len stuff, len(lines[0].coords)={0}'.format(len(lines[0].coords))
+            #print '@@doing len stuff, len(lines[0].coords)={0}'.format(len(lines[0].coords))
             for coord in lines[0].coords:
                 new_x=(coord[0] * 1.*scale_factor)
                 new_y=(coord[1] * 1.*scale_factor)
