@@ -67,7 +67,7 @@ class MultiPolygonFeature(Feature):
     def scale_feature(self, scale_factor=1.,offset={'x':0.,'y':0.}):
         if isinstance(self.geometry,MultiPolygon):
             new_geoms=[]
-            print('self.geometry.geoms={0}'.format(list(self.geometry.geoms)))
+           # print('self.geometry.geoms={0}'.format(list(self.geometry.geoms)))
             for curr_geom in self.geometry.geoms:
                 new_geoms.append(self.scale_feature_polygon(curr_geom,scale_factor=scale_factor, offset=offset))
                 self.geometry=MultiPolygon(new_geoms)

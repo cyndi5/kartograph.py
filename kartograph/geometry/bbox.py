@@ -60,7 +60,6 @@ class BBox(object):
 
     def inflate(self, inflate=1, pad_dict={}):
         d = min(self.width, self.height)
-        print 'pad_dict={0}'.format(pad_dict)
         left_amount = d * inflate * pad_dict["left"]
         top_amount = d * inflate * pad_dict["top"]
         right_amount = d * inflate * pad_dict["right"]

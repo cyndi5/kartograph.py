@@ -1,6 +1,8 @@
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.geometry.base import BaseGeometry
 from maplayer import MapLayer
+from geometry.utils import join_features
+from geometry import create_feature
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
 from geometry.feature import MultiPolygonFeature
@@ -79,23 +81,22 @@ class Map(object):
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected 
 
-        
+        print 'me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=(0,0) #me._init_offset
                
             else:
-                #print "\n\nNo sidelayer"
                 layer.options["init_offset"]=(0, 0)
 #            print "getting features for layer={0}".format(layer)
             if layer.id==me.options['bounds']['data']['sidelayer']:
                 layer.get_features(contained_geom=me._main_geom)
                 #me._side_bounding_geometry=layer.features[0].geometry
                # print 'side bounding geometry bbox={0}'.format(geom_to_bbox(me._side_bounding_geometry))
-                #print "done getting features for layer={0}".format(layer.id)
+                print "done getting features for layer={0}".format(layer.id)
 
        
-        
+        print 'Next me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
         for layer in me.layers:
             if "sidelayer" in layer.options:
                 layer.options["init_offset"]=(0,0) #me._init_offset
@@ -107,12 +108,13 @@ class Map(object):
             if layer.id!=me.options['bounds']['data']['sidelayer']:
                 layer.get_features()
                 #print "done getting features for layer={0}".format(layer.id)
+
+       
         # initialize the projected bounds of the main layer and the sidelayer
         me._auto_scale_factor=me._init_projected_bounds()
         
         # scale and offset the side features
         me._scale_offset_side_features()
-
         # Do the view AFTER projecting 
         me.view = me._get_view()
         # Get the polygon (in fact it's a rectangle in most cases) that will be used
@@ -120,6 +122,8 @@ class Map(object):
         me.view_poly = me._init_view_poly()
 
         me._project_to_view()
+
+       
         # In each layer we will join polygons.
         me._join_features()
         # Eventually we crop geometries to the map bounding rectangle.
@@ -146,7 +150,8 @@ class Map(object):
             layer=self.layersById[data['sidelayer']]
             for feature in layer.features:
                 sidelayer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
-        self._side_projected_bounds=sidelayer_bbox
+        self._side_projected_bounds=geom_to_bbox(self._side_bounding_geometry)
+        #sidelayer_bbox
         if data['layer'] in self.layersById:
             layer=self.layersById[data['layer']]
             for feature in layer.features:
@@ -184,7 +189,7 @@ class Map(object):
                         else:
                             feature.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
                     if layer.id==layer.options['sidelayer']:
-                            mybbox=geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"])
+                            mybbox.join(geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"]))
 
 
         # We need to set the view up and project AFTER all this
@@ -301,6 +306,8 @@ class Map(object):
         # so this comes at low extra cost.
         elif mode[:4] == 'poly':
             features = self._get_bounding_geometry()
+
+            print 'len(features in bounding)={0}'.format(len(features))
             if len(features) > 0:
                 if isinstance(features[0].geom, BaseGeometry):
                     #print 'MOOO'
@@ -386,6 +393,7 @@ class Map(object):
         # so this comes at low extra cost.
         elif mode[:4] == 'poly':
             features = self._get_side_bounding_geometry()
+            print 'len(features in side bounding)={0}'.format(len(features))
             if len(features) > 0:
                 if isinstance(features[0].geom, BaseGeometry):
                     print 'len(features)={0}'.format(len(features))
@@ -464,8 +472,8 @@ class Map(object):
            
             side_features = self._get_side_bounding_geometry()
             if len(side_features) > 0:
-                print "Found_side features"
-                self._side_bounding_geometry = side_features[0].geom
+                print "Found_side features, len={0}".format(len(side_features))
+                self._side_bounding_geometry = deepcopy(side_features[0].geom)
                 side_ubbox.join(geom_to_bbox(side_features[0].geometry))
                 side2=deepcopy(side_features[0])
                 side2.project(self.side_proj)
@@ -497,7 +505,7 @@ class Map(object):
         returns a list of all geometry that the map should
         be cropped to.
         """
-        print 'map._get_bounding_geometry'
+        print ''
     #    proj = self.proj
 
         # Use the cached geometry, if available.
@@ -514,7 +522,7 @@ class Map(object):
             raise KartographError('layer not found "%s"' % id)
         layer = self.layersById[id]
         
-        print 'layer={0},\tid={1}'.format(layer,id)
+        print 'map._get_bounding_geometry,\tid={0}'.format(id)
         # Construct the filter function of the layer, which specifies
         # what features should be excluded from the map completely.
         if layer.options['filter'] is False:
@@ -550,7 +558,8 @@ class Map(object):
                         if f.geometry.area > layer.options['filter-islands']]
         # Store computed boundary in cache.
 #        self._bounding_geometry_cache = features
-        return features
+        bound_feat=join_features(features,[])
+        return bound_feat#features
 
     def _get_side_bounding_geometry(self):
         """
@@ -608,7 +617,12 @@ class Map(object):
                 bounding=True)
                         )
         print 'Done getting side bounding, features.len={0}'.format(len(features))
-        return features
+        temp_feat=features[0].geom
+        for curr_feat in features:
+            temp_feat=temp_feat.union(curr_feat.geom)
+        
+        bound_feat=create_feature(temp_feat,{})
+        return [bound_feat]#features
 
     # Hopefully get a good offset to move the county table to
     
@@ -939,9 +953,11 @@ class Map(object):
         temp_style=''
         for layer in self.layers:
             opts=layer.options
-            if opts['specialstyle'] is not None and layer.special_fips is not None:
-                temp_style=re.sub('<SPECIAL_FIPS>',layer.special_fips,opts['specialstyle'])
-                print('Adding special styling {0}'.format(temp_style))
-                ret_style = ret_style+ temp_style
+            if opts['specialstyle'] is not None and layer.special_fips is not None and len(layer.special_fips)>0:
+                for curr_special in layer.special_fips:
+                    temp_style=re.sub('<SPECIAL_FIPS>',curr_special,opts['specialstyle'])
+                    ret_style = ret_style+ temp_style
+            elif opts['specialstyle'] is not None:
+                ret_style+=opts['specialstyle']
         return ret_style
         

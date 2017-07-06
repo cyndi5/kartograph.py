@@ -66,6 +66,8 @@ class SvgRenderer(MapRenderer):
         self.svg = svg
 
     def _render_feature(self, feature, attributes=[], labelOpts=False, offset={'x':0, 'y':0}, scale=1., is_county=False):
+        if feature.geometry is None:
+            print 'Geometry of {0} is none!'.format(feature.properties) 
         node = self._render_geometry(feature.geometry,offset, scale, is_county)
         if node is None:
             print 'node is None!!!!'

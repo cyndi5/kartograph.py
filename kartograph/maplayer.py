@@ -18,7 +18,6 @@ class MapLayer(object):
 
     def __init__(self, id, options, _map, cache, special_fips = None):
         # Store layer properties as instance properties
-        print 'maplayer.init'
         self.id = id
         self.options = options
 #        print 'self.options={0}'.format(self.options)
@@ -46,7 +45,7 @@ class MapLayer(object):
         print 'Getting features for layer.id={0}'.format(layer.id)
 #        print 'layer.map.options={0}'.format(layer.map.options)
         is_projected = False # should this be left?
-
+        print 'First Hash of layer.map._side_bounding_geometry={0}'.format(hash(str(layer.map._side_bounding_geometry)))
         bounding_geom=None
         # Let's see if theres a better bounding box than this..
         bbox = [-180, -90, 180, 90]
@@ -77,7 +76,7 @@ class MapLayer(object):
             if "sidelayer" in layer.options and opts['bounds']['data']['sidelayer']!=layer.id and layer.map._side_bounding_geometry is not None:
                 # We are cropping based on whether it's in the sidelayer
                 bounding_geom=layer.map._side_bounding_geometry
-
+                print('\tSetting bounding_geom to side_bounding_geometry, hash of which is {0}'.format(hash(str(bounding_geom))))
         # If the layer has the "src" property, it is a **regular map layer** source, which
         # means that there's an exernal file that we load the geometry and meta data from.
         if 'src' in layer.options:
@@ -123,24 +122,26 @@ class MapLayer(object):
        # if bounding_geom is not None:
         #    feature = create_feature(bounding_geom, {})
          #   features.append(feature)
+
+        # If we're in the sidelayer main (e.g. countylayer for our application),
+        # note that EVERY county should be specially styled
+
+        layer.special_fips=[]
         for feature in features:
             #print 'feature={0}'.format(feature)
 
-            # Hack to fix the side bounding geometry quickly
-            if layer.id=='countylayer':
-                layer.map._side_bounding_geometry=feature.geometry
-            # If the features are not projected yet, we project them now (either way it sesms)
             if 'sidelayer' in layer.options:
                 #print 'projecting with side_proj'
                 feature.project(layer.map.side_proj)
             else:
                 feature.project(layer.map.proj)
             curr_fp=''
-            if layer.special_fips is None:
+            if 'sidelayer' in layer.options and layer.options['sidelayer'] == layer.id:
+
                 for curr_prop in feature.props:
                     temp_fp=(re.search('FP',curr_prop))
                     if temp_fp is not None and len(temp_fp.group(0))>len(curr_fp):
-                        layer.special_fips=feature.props[curr_prop]
+                        layer.special_fips.append(feature.props[curr_prop])
                         curr_fp=temp_fp.group(0)
             
   

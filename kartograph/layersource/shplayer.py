@@ -28,7 +28,7 @@ class ShapefileLayer(LayerSource):
         self.shpSrc = src
         self.sr = shapefile.Reader(src)
         self.recs = []
-        self.intersect_tol=.1
+        self.intersect_tol=.3
         self.shapes = {}
         self.load_records()
         self.proj = None
@@ -146,7 +146,6 @@ class ShapefileLayer(LayerSource):
                 shp.bounding=bounding
                 shp.the_feat_name=the_feat_name
                 geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
-                #print 'Name: {0}, bbox={1}'.format(drec['NAME'],geom_to_bbox(geom))
                 if geom is None:
                     ignored += 1
                     continue
@@ -155,9 +154,9 @@ class ShapefileLayer(LayerSource):
                #     print 'intersect_geom.area={0}'.format(intersect_geom.area)
                 if intersect_geom.area>=self.intersect_tol*geom.area:
                     desired_geom=True
-                    #print 'Found intersecting feature {0}'.format(the_feat_name)
+                   # print 'Found intersecting feature {0}'.format(the_feat_name)
             # Check for sufficient intersection to add places automatically
-                drec['DESIRED_GEOM']=True
+                drec['DESIRED_GEOM']=desired_geom
             if filter is None or filter(drec):
                 #if contained_geom is not None:
                  #   print '\tIn for the_feat_name {0}'.format(drec['NAME'])
@@ -190,8 +189,9 @@ class ShapefileLayer(LayerSource):
                         ignored += 1
                         self.forget_shape(i)
                         continue
-                  #  else:
-                   #     print 'Name: {0} ({1}) intersects'.format(shp.the_feat_name,drec)      
+                    else:
+                        ignored+=0
+#                        print 'Name: {0} intersects'.format(shp.the_feat_name)      
                 else:
                     # If we didn't already set the shape and geom above, we set it here instead
                     shp = self.get_shape(i)
@@ -211,7 +211,7 @@ class ShapefileLayer(LayerSource):
                     # contained_geom (which should really be contained_geom but haven't
                     # changed yet)
                     curr_intersect=contained_geom.intersection(geom)
-                    if curr_intersect.area<=max_intersect:
+                    if curr_intersect.area<=max_intersect and curr_intersect.area==0:
                        # print '\tfail: curr_intersect.area={0}'.format(curr_intersect.area)
                         ignored += 1
                         self.forget_shape(i)
@@ -222,7 +222,7 @@ class ShapefileLayer(LayerSource):
                         max_intersect = curr_intersect.area
                         feature = create_feature(geom, props)
                         
-                        res=[feature]
+                        res.append(feature)
                         #continue
                 else:
                     #print 'Constructing feature {0}'.format(drec['NAME'])
@@ -298,7 +298,7 @@ class ShapefileLayer(LayerSource):
                # ..and return the geom of the place we wanted 
                 return geom
         #self.proj=None
-#        print 'res={0}'.format(res)
+        #print 'res={0}'.format(res)
         raise KartographError('having problems with main feature') 
         return None
 
