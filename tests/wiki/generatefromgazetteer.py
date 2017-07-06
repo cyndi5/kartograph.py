@@ -1,48 +1,10 @@
 import sys
 from kartograph import Kartograph
 import argparse
+from kartfips import generate_place
+import re
 
-
-
-
-
-
-
-
-
-
-    #if auto-side is set to True, we will hopefully be able to find the county layer automatically (this will make it much easier to automate creation of these things)
-
-def my_filter_place(record):    
-    return record['DESIRED_GEOM']
-def my_filter_main_place(record):
-    return record['STATEFP']==curr_state and record['PLACEFP']==curr_place
-
-def generate_place(cfg, the_file, css, curr_state, curr_place):
-    
-# configurations for Kartography
-
-    K = Kartograph()
-    K.generate(cfg, outfile=the_file,stylesheet=css,render_format='Moo', curr_place=curr_place)
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Output Place Maps to Upload to Wikipedia")
-    parser.add_argument("-f", "--filename", help="the filename to output to",default="None")
-    parser.add_argument("-s", "--statefips", help="the 2-digit FIPS code for the state the place is located in", default="17")
-    parser.add_argument("-p", "--placefips", help="the 5-digit FIPS code for the place being drawn", default="00000")
-    parser.add_argument("-c", "--cssstyle", help="The css style file", default="style.css")
-    
-    args=parser.parse_args()
-    css=open(args.cssstyle).read()
-    
-    curr_state=args.statefips
-    #curr_county='131'
-    curr_place=args.placefips
-    if args.filename=='None':
-        the_file=None
-    else:
-        the_file=args.filename
-
+def make_this_place(css, curr_state, curr_place):
     cb_var='cb_2016_us_county_500k'
     
     cb_var_place='cb_2016_'+curr_state+'_place_500k'
@@ -92,14 +54,40 @@ if __name__ == "__main__":
             "auto-side": True
             },
         "scale-sidelayer": "auto",
-        "scale-sidelayer-factor": 1.9
+        "scale-sidelayer-factor": 1.2
    },
-   "export":
-   {
+     "export":
+     {
        "width": 500,
        "height": 500,
-       "padding": 20
+       "padding": 10
+      }
     }
-    }
-    generate_place(cfg, the_file, css, curr_state, curr_place)
+    generate_place(cfg, None, css, curr_state, curr_place)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Output Place Maps to Upload to Wikipedia for gazetteer file")
+    parser.add_argument("-s", "--statefips", help="the state gazetteer file FIPS code to read from",default="17")
+    parser.add_argument("-y", "--yearfips", help="the year of state gazetteer file FIPS code to read from",default="2016")
+    parser.add_argument("-c", "--cssstyle", help="The css style file", default="style.css")
+    parser.add_argument("-n", "--nocdp", action="store_true", help="Whether or not to use CDP")
+    
+    args=parser.parse_args()
+    css=open(args.cssstyle).read()
+    with open(args.yearfips+'_gaz_place_'+args.statefips+'.txt', 'r') as f:
+       first_flag=False
+       for line in f:
+           if not first_flag:
+               first_flag=True
+           else:
+               field_list = re.split('\t',line)
+               if not (args.nocdp and int(field_list[4])==57):
+                   make_this_place(css,args.statefips,field_list[1][2:])
+    
+    
+ 
         
+
+
+
