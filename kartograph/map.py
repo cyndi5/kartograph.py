@@ -28,7 +28,7 @@ verbose = False
 
 class Map(object):
 
-    def __init__(me, options, layerCache, format='svg', src_encoding=None):
+    def __init__(me, options, layerCache, format='svg', src_encoding=None,boundCache = None, cache_bounds=False):
         me.options = options
         me.format = format
 #        print 'map.init : me.options={0}'.format(me.options)
@@ -36,7 +36,14 @@ class Map(object):
         me.layers = []
         me.layersById = {}
         # We will cache the bounding geometry since we need it twice, eventually.
-        me._bounding_geometry_cache = False
+      
+        # super caching it since it will be the same in each state???
+        if 'bounding_geometry' in boundCache and cache_bounds and boundCache['bounding_geometry'] is not None:
+            me._bounding_geometry_cache = boundCache['bounding_geometry']
+           # print 'me._bounding_geometry_cache={0}'.format(me._bounding_geometry_cache)
+        else:
+           me._bounding_geometry_cache = False
+        me._side_bounding_geometry_cache = False
         me._unprojected_bounds = None
         me._side_bounding_geometry = None
         me._projected_bounds = None
@@ -62,21 +69,26 @@ class Map(object):
 
         layer = me.layersById['placelayer']
         layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
+
+        #       First, load the main_geometry of the place we want
         me._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
         #print 'main_geom={0}'.format(me._main_geom)
         # Initialize the projection that will be used in this map. This sounds easier than
         
         # it is since we need to compute lot's of stuff here.
         #print 'init projection'
+
+        #me._bounding_geometry_cache=me._get_bounding_geometry()
         me.proj = me._init_projection()
         me.side_proj = me._init_side_projection()
         #print '**me.side_proj={0}'.format(me.side_proj)
+
+        if 'bounding_geometry' not in boundCache and cache_bounds:
+            boundCache['bounding_geometry'] =  deepcopy(me._bounding_geometry_cache)
+
         # Compute the bounding geometry for the map.
         me.bounds_poly = me._init_bounds()
-        #print '**init bounds, me._projected_bounds={0}, me.bounds_poly={1}'.format(me._projected_bounds, me.bounds_poly)
-    
-    #       First, load the main_geometry of the place we want
-      
+   
 
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected 
@@ -91,10 +103,6 @@ class Map(object):
 #            print "getting features for layer={0}".format(layer)
             if layer.id==me.options['bounds']['data']['sidelayer']:
                 layer.get_features(contained_geom=me._main_geom)
-                #me._side_bounding_geometry=layer.features[0].geometry
-               # print 'side bounding geometry bbox={0}'.format(geom_to_bbox(me._side_bounding_geometry))
-#                print "done getting features for layer={0}".format(layer.id)
-
        
 #        print 'Next me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
         for layer in me.layers:
@@ -126,7 +134,7 @@ class Map(object):
 
        
         # In each layer we will join polygons.
-        me._join_features()
+ #       me._join_features()
         # Eventually we crop geometries to the map bounding rectangle.
         if options['export']['crop-to-view']:
             me._crop_layers_to_view()
@@ -156,6 +164,7 @@ class Map(object):
         if data['layer'] in self.layersById:
             layer=self.layersById[data['layer']]
             for feature in layer.features:
+                #print 'feature.props={0}'.format(feature.props)
                 layer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
             self._projected_bounds=layer_bbox
         if opts['bounds']['scale-sidelayer']=='auto':
@@ -462,7 +471,7 @@ class Map(object):
         # named gemetry, we compute the bounding boxes of every
         # geometry.
         if mode[:4] == "poly":
-            features = self._get_bounding_geometry()
+            features = deepcopy(self._get_bounding_geometry())
 
             ubbox = BBox()
             side_ubbox=BBox()
@@ -568,13 +577,10 @@ class Map(object):
                 bounding=True)
                         )
 
-    # Omit tiny islands, if needed.
-        if layer.options['filter-islands']:
-            features = [f for f in features
-                        if f.geometry.area > layer.options['filter-islands']]
         # Store computed boundary in cache.
 #        self._bounding_geometry_cache = features
         bound_feat=join_features(features,[])
+        self._bounding_geometry_cache=bound_feat
         return bound_feat#features
 
     def _get_side_bounding_geometry(self):
@@ -584,9 +590,8 @@ class Map(object):
         For bounds mode "*polygons*" this helper function
         returns the offset required as a result of scaling the side layer
         """
-        #print 'map._get_side_bounding_geometry'
-#        proj = self.proj
-
+        if self._side_bounding_geometry_cache:
+            return self._side_bounding_geometry_cache
 
         opts = self.options
         features = []
@@ -626,10 +631,7 @@ class Map(object):
                 filter=filter,
                 min_area=data["min-area"],
                 charset=layer.options['charset'],
-                offset=layer.options['offset'],
                 contained_geom=self._main_geom,
-                init_offset=self._init_offset,
-                scale=layer.options['scale'],
                 bounding=True)
                         )
         #print 'Done getting side bounding, features.len={0}'.format(len(features))
@@ -638,7 +640,8 @@ class Map(object):
             temp_feat=temp_feat.union(curr_feat.geom)
         
         bound_feat=create_feature(temp_feat,{})
-        return [bound_feat]#features
+        self._side_bounding_geometry_cache=[bound_feat]
+        return self._side_bounding_geometry_cache#features
 
     # Hopefully get a good offset to move the county table to
     

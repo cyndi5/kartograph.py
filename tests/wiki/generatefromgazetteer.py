@@ -2,6 +2,8 @@ import sys
 from kartograph import Kartograph
 import argparse
 import re
+import cProfile, pstats, StringIO
+import io
 
 def make_this_place(K, css, curr_state, curr_place):
     cb_var='cb_2016_us_county_500k'
@@ -64,7 +66,7 @@ def make_this_place(K, css, curr_state, curr_place):
     }
     print '** Begin generating {0}'.format(curr_place)
     #generate_place(cfg, None, css, curr_state, curr_place)
-    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place)
+    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place, cache_bounds=True)
     print '** End generating {0}'.format(curr_place)
 
 
@@ -74,9 +76,14 @@ if __name__ == "__main__":
     parser.add_argument("-y", "--yearfips", help="the year of state gazetteer file FIPS code to read from",default="2016")
     parser.add_argument("-c", "--cssstyle", help="The css style file", default="style.css")
     parser.add_argument("-n", "--nocdp", action="store_true", help="Whether or not to use CDP")
+    parser.add_argument("-m", "--minplace", help="Minimum place FIPS code to add", default="00000");
+    parser.add_argument("-x", "--maxplace", help="Maximum place FIPS code to add", default="99999");
+    parser.add_argument("-p", "--profiler", help="Output file for profiler", default="profile.out");
     
     args=parser.parse_args()
     css=open(args.cssstyle).read()
+    pr = cProfile.Profile()
+    pr.enable()
     with open(args.yearfips+'_gaz_place_'+args.statefips+'.txt', 'r') as f:
        first_flag=False
        K=Kartograph()
@@ -85,9 +92,17 @@ if __name__ == "__main__":
                first_flag=True
            else:
                field_list = re.split('\t',line)
-               if not (args.nocdp and int(field_list[4])==57):
+               if not (args.nocdp and int(field_list[4])==57) and int(args.minplace)<=int(field_list[1][2:]) and int(args.maxplace)>=int(field_list[1][2:]):
                    make_this_place(K,css,args.statefips,field_list[1][2:])
-    
+
+    pr.disable()
+#    s=StringIO.StringIO()
+    f = io.FileIO(args.profiler,mode='w');
+    sortby='cumulative'
+    ps = pstats.Stats(pr, stream=f).sort_stats(sortby)
+    ps.print_stats()
+    #print f.getvalue()
+    f.close();
     
  
         

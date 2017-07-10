@@ -4,7 +4,13 @@ as of version 2.0 kartograph supports multiple import formats
 - Shapefile
 - KML ? (only polygons and polylines)
 - GeoJSON ?
+
+New Update, try caching geometries?
+
+
 """
+
+
 
 __all__ = ['LayerSource', 'ShapefileLayer', 'CsvLayer', 'GraticuleLayer', 'PostGISLayer']
 
@@ -28,10 +34,9 @@ def handle_layer_source(layer, cache={}):
 
         # CHANGE????
         if src in cache:
+            #print 'cache[src]={0}'.format(cache[src])
             #print 'src in cache'
             return cache[src]
-        else:
-            print 'src {0} not in cache'.format(src)
         # If the source url ends with ".shp", we will use the Shapefile reader
         if src[-4:].lower() == ".shp":
             src = ShapefileLayer(src)

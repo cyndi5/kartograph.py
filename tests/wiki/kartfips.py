@@ -1,6 +1,7 @@
 import sys
 from kartograph import Kartograph
 import argparse
+import cProfile, pstats, StringIO
 
 
 
@@ -26,6 +27,8 @@ def generate_place(cfg, the_file, css, curr_state, curr_place):
     K.generate(cfg, outfile=the_file,stylesheet=css,render_format='Moo', curr_place=curr_place)
 
 if __name__ == "__main__":
+    pr = cProfile.Profile()
+    pr.enable()
     parser = argparse.ArgumentParser(description="Output Place Maps to Upload to Wikipedia")
     parser.add_argument("-f", "--filename", help="the filename to output to",default="None")
     parser.add_argument("-s", "--statefips", help="the 2-digit FIPS code for the state the place is located in", default="17")
@@ -102,4 +105,9 @@ if __name__ == "__main__":
     }
     }
     generate_place(cfg, the_file, css, curr_state, curr_place)
-        
+    pr.disable()
+    s=StringIO.StringIO()
+    sortby='cumulative'
+    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps.print_stats()
+    print s.getvalue()

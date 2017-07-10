@@ -30,10 +30,9 @@ class ShapefileLayer(LayerSource):
         self.recs = []
         self.intersect_tol=.3
         self.shapes = {}
+        self.geoms = {}
         self.load_records()
         self.proj = None
-        self.offset = {'x':0, 'y':0}
-        self.scale=1
         # Check if there's a spatial reference
         prj_src = src[:-4] + '.prj'
         if exists(prj_src):
@@ -87,20 +86,29 @@ class ShapefileLayer(LayerSource):
             shp = self.shapes[i] = self.sr.shapeRecord(i).shape
         return shp
 
+    def get_geom(self, i, ignore_holes=False, min_area=0, bbox=None):
+        """ Get shape
+        Returns a geom for this shapefile. If the geom is requested for the first time,
+        it will be loaded via shape2geometry. Otherwise it will loaded from cache.
+        """
+        if i in self.geoms:  # check cache
+            geom = self.geoms[i]
+        else:  # load shape from shapefile
+            geom = self.geoms[i] =shape2geometry(self.get_shape(i), ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
+        return geom
+
 
     def forget_shape(self, i):
         if i in self.shapes:
             self.shapes.pop(i)
 
             
-    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, offset = {'x':0, 'y':0}, scale=1, init_offset = (0,0), bounding_geom=None, contained_geom=None):
+    def get_features(self, attr=None, filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False, bounding_geom=None, contained_geom=None):
         """
         ### Get features
         """
         res = []
-        self.init_offset=init_offset
-        self.offset=offset
-        self.scale=scale
+    
         max_intersect=0
         #if contained_geom is None:
         #    print '\t\tcontained_geom is None'
@@ -140,7 +148,8 @@ class ShapefileLayer(LayerSource):
                 shp=self.get_shape(i)
                 shp.bounding=bounding
                 shp.the_feat_name=the_feat_name
-                geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
+                geom = self.get_geom(i,ignore_holes=ignore_holes, min_area=min_area, bbox=bbox)
+    #(shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
                 if geom is None:
                     ignored += 1
                     continue
@@ -193,8 +202,8 @@ class ShapefileLayer(LayerSource):
                     shp.bounding=bounding
                     shp.the_feat_name=the_feat_name
                 # ..and convert the raw shape into a shapely.geometry
-#                print 'self.init_offset={0}'.format(self.init_offset)
-                    geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj, offset=self.offset, scale=self.scale, init_offset=self.init_offset)
+                    geom = self.get_geom(i,ignore_holes=ignore_holes, min_area=min_area, bbox=bbox)
+                    #shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
                     if geom is None:
                         ignored += 1
                         continue
@@ -230,7 +239,7 @@ class ShapefileLayer(LayerSource):
 #        print 'res={0}'.format(res)
         return res
 
-    # get the (not really initial offset as a tuple for scaling this thing
+    # get the main geometry 
     def get_main_geom(self, attr=None, main_filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False):
         """
         ### Get features
@@ -300,7 +309,7 @@ class ShapefileLayer(LayerSource):
 # # shape2geometry
 
 
-def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=None, offset={'x':0, 'y':0}, scale=1, init_offset=(0,0)):
+def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=None):
     if shp is None:
         return None
     if bbox and shp.shapeType != 1:
@@ -315,7 +324,7 @@ def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=Non
             return None
 
     if shp.shapeType in (5, 15):  # multi-polygon
-        geom = shape2polygon(shp, ignore_holes=ignore_holes, min_area=min_area, proj=proj, offset=offset, scale=scale, init_offset=init_offset)
+        geom = shape2polygon(shp, ignore_holes=ignore_holes, min_area=min_area, proj=proj)
     elif shp.shapeType in (3, 13):  # line
         geom = shape2line(shp, proj=proj)
     elif shp.shapeType == 1: # point
@@ -325,7 +334,7 @@ def shape2geometry(shp, ignore_holes=False, min_area=False, bbox=False, proj=Non
     return geom
 
 
-def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x':0, 'y':0}, scale=1, init_offset=(0, 0)):
+def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None):
     """
     converts a shapefile polygon to geometry.MultiPolygon
     """
@@ -348,14 +357,11 @@ def shape2polygon(shp, ignore_holes=False, min_area=False, proj=None, offset={'x
             for k in range(len(pts)):
                 pts[k] = pts[k][:2]
         if proj and shp.alreadyProj is False:
-            print 'init_offset={0}'.format(init_offset)
-            project_coords(pts, proj, offset,scale, rep_point=rep_point, init_offset=init_offset)
+            project_coords(pts, proj, rep_point=rep_point)
             if shp.bounding:
 #                print 'Already proj, proj exists'
                 shp.alreadyProj=True
         elif shp.alreadyProj is False:
-        #    print 'alreadyProj is false, proj is true, {0}'.format(offset)
-            offset_coords(pts, offset,scale, init_offset=init_offset)
             if shp.bounding:
                 shp.alreadyProj=True
             #else:
@@ -443,22 +449,14 @@ def shape2point(shp, proj=None):
         raise KartographError('shapefile import failed - no points found')
     
   
-def project_coords(pts, proj, offset, scale, rep_point=None, init_offset=(0,0)):
+def project_coords(pts, proj, rep_point=None):
     from shapely.geometry import Polygon, MultiPolygon
     for i in range(len(pts)):
         x, y = proj(pts[i][0], pts[i][1], inverse=True)
-        pts[i][0] = x*scale+init_offset[0]+offset['x']
-        pts[i][1] = y*scale+init_offset[1]+offset['y']
+        pts[i][0] = x
+        pts[i][1] = y
 
-def offset_coords(pts, offset, scale, init_offset=(0,0)):
-    from shapely.geometry import Polygon, MultiPolygon
-   # print 'in offset init_offset={0},offset={1}'.format(init_offset, offset)
-   # pts2=deepcopy(pts)
-    for i in range(len(pts)):
-        x, y = pts[i][0], pts[i][1]
-        pts[i][0] = x#*scale+init_offset[0]+offset['x']
-        pts[i][1] = y#*scale+init_offset[1]+offset['y']
-    #pts=deepcopy(pts2)
+
 def get_scale_offset(pts, proj,  scale):
     from shapely.geometry import Polygon, MultiPolygon
     pts2=deepcopy(pts)

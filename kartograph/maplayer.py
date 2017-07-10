@@ -91,8 +91,7 @@ class MapLayer(object):
                 filter=filter,
                 bbox=bbox,
                 ignore_holes='ignore-holes' in layer.options and layer.options['ignore-holes'],
-                charset=layer.options['charset'], offset=layer.options['offset'], scale=layer.options['scale'], 
-                init_offset=layer.options['init_offset'],
+                charset=layer.options['charset'], 
                 bounding_geom=bounding_geom,
                 contained_geom=contained_geom
             )
