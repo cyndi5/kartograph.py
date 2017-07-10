@@ -27,8 +27,11 @@ def handle_layer_source(layer, cache={}):
         # If the source is already stored in cache, we re-use it-
 
         # CHANGE????
-#        if src in cache:
-#            return cache[src]
+        if src in cache:
+            #print 'src in cache'
+            return cache[src]
+        else:
+            print 'src {0} not in cache'.format(src)
         # If the source url ends with ".shp", we will use the Shapefile reader
         if src[-4:].lower() == ".shp":
             src = ShapefileLayer(src)

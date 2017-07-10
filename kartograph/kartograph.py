@@ -53,19 +53,21 @@ class Kartograph(object):
         countyalt_file=''
         curr_place_name=''
         curr_state_name=''
+        curr_state_fips=''
         _map = Map(opts, self.layerCache, format=format)
         for layer in _map.layers:
             if layer.id=='countylayer':
-                # should be just one feature 
+                # should be just one feature, not anymore but whatever
                 feature = layer.features[0]
                 countyalt_file=countyalt_file+feature.props['NAME']+'_'+self.lsad_map[feature.props['LSAD']]
                 curr_state_name=self.state_fips[feature.props['STATEFP']]
+                curr_state_fips=feature.props['STATEFP']
             for feature in layer.features:
                 if 'PLACEFP' in feature.props and feature.props['PLACEFP']==curr_place: # this is highlighting place
                     curr_place_name=re.sub('\s','_',feature.props['NAME'])
                     
                 #print('feature.props={0}'.format(feature.props))
-        alt_outfile=countyalt_file+'_'+curr_state_name+'_Incorporated_and_Unincorporated_areas_'+curr_place_name+'_Highlighted.svg'
+        alt_outfile=countyalt_file+'_'+curr_state_name+'_Incorporated_and_Unincorporated_areas_'+curr_place_name+'_Highlighted_'+curr_state_fips+curr_place+'.svg'
         #print('alt_outfile={0}'.format(alt_outfile))
         if outfile is None:
             outfile=alt_outfile # use the alt outfile if nothing else specified

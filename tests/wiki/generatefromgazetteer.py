@@ -1,10 +1,9 @@
 import sys
 from kartograph import Kartograph
 import argparse
-from kartfips import generate_place
 import re
 
-def make_this_place(css, curr_state, curr_place):
+def make_this_place(K, css, curr_state, curr_place):
     cb_var='cb_2016_us_county_500k'
     
     cb_var_place='cb_2016_'+curr_state+'_place_500k'
@@ -54,16 +53,19 @@ def make_this_place(css, curr_state, curr_place):
             "auto-side": True
             },
         "scale-sidelayer": "auto",
-        "scale-sidelayer-factor": 1.2
+        "scale-sidelayer-factor": 1.5
    },
      "export":
      {
        "width": 500,
        "height": 500,
-       "padding": 10
+       "padding": 15
       }
     }
-    generate_place(cfg, None, css, curr_state, curr_place)
+    print '** Begin generating {0}'.format(curr_place)
+    #generate_place(cfg, None, css, curr_state, curr_place)
+    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place)
+    print '** End generating {0}'.format(curr_place)
 
 
 if __name__ == "__main__":
@@ -77,13 +79,14 @@ if __name__ == "__main__":
     css=open(args.cssstyle).read()
     with open(args.yearfips+'_gaz_place_'+args.statefips+'.txt', 'r') as f:
        first_flag=False
+       K=Kartograph()
        for line in f:
            if not first_flag:
                first_flag=True
            else:
                field_list = re.split('\t',line)
                if not (args.nocdp and int(field_list[4])==57):
-                   make_this_place(css,args.statefips,field_list[1][2:])
+                   make_this_place(K,css,args.statefips,field_list[1][2:])
     
     
  

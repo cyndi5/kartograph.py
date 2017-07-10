@@ -191,9 +191,9 @@ class Map(object):
                             feature.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
                         if layer.id==layer.options['sidelayer']:
                             temp_bbox=geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"])
-                            print 'adding to mybbox, {0}, {1}'.format(feature.properties['NAME'], temp_bbox)
+                            #print 'adding to mybbox, {0}, {1}'.format(feature.properties['NAME'], temp_bbox)
                             mybbox.join(temp_bbox)
-                            print 'mybbox={0}'.format(mybbox)
+                            #print 'mybbox={0}'.format(mybbox)
                            # print 'xmin, ymin, xmax, ymax={0},{1},{2},{3}'.format(mybbox.xmin,mybbox.ymin,mybbox.xmax,mybbox.ymax)   
 
         # Create a dummy feature to scale the side bounding geometry
@@ -215,7 +215,7 @@ class Map(object):
         #print 'statebbox={0}'.format(statebbox)
         self._side_projected_bounds=mybbox
         self._projected_bounds=statebbox
-        print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
+        #print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
         #print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
       
 
@@ -691,8 +691,8 @@ class Map(object):
         bbox = deepcopy(self._projected_bounds)
         bbox.join(deepcopy(self._side_projected_bounds))      #geom_to_bbox(self.projec)
         self.src_bbox = bbox
-        print 'bbox.width={0}, bbox.height={1}, prod={2}'.format(bbox.width,bbox.height,bbox.width*bbox.height)
-        print 'self._projected_bounds={0}, self._side_projected_bounds={1}, bbox={2}'.format(self._projected_bounds,self._side_projected_bounds, bbox)
+        #print 'bbox.width={0}, bbox.height={1}, prod={2}'.format(bbox.width,bbox.height,bbox.width*bbox.height)
+        #print 'self._projected_bounds={0}, self._side_projected_bounds={1}, bbox={2}'.format(self._projected_bounds,self._side_projected_bounds, bbox)
 
         exp = self.options["export"]
         w = exp["width"]
