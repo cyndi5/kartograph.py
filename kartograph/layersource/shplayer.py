@@ -6,6 +6,8 @@ from kartograph.geometry.utils import geom_to_bbox
 from os.path import exists
 from osgeo.osr import SpatialReference
 import pyproj
+from shapely.geometry import MultiPoint, Point
+
 import shapefile
 #import string
 
@@ -29,6 +31,8 @@ class ShapefileLayer(LayerSource):
         self.sr = shapefile.Reader(src)
         self.recs = []
         self.intersect_tol=.3
+        self.max_area_for_circle=.001
+        self.high_exp_factor=1.5
         self.shapes = {}
         self.geoms = {}
         self.load_records()
@@ -210,6 +214,7 @@ class ShapefileLayer(LayerSource):
                     
             
                 if contained_geom is not None:
+                    # Add a circle if no good at the end after we get all the good features
                     #print 'Checking county {0}'.format(drec['NAME'])
                     # Find if it's the most intersecting of the geometries with
                     # contained_geom (which should really be contained_geom but haven't
@@ -237,8 +242,40 @@ class ShapefileLayer(LayerSource):
             print "-ignoring %d shapes (not in bounds %s )" % (ignored, bbox)
         #self.proj=None
 #        print 'res={0}'.format(res)
+
+        # Add a feature consisting of a circle around the contaied_geom if it's too small
+        if contained_geom is not None and bounding_geom is None:
+            highlight_circ=self.get_highlight_circle(res, contained_geom)
+            if highlight_circ is not None:
+                #print('\tAdding a highlight_circ')
+                # Create and append feature
+                curr_props={'STATEFP':'00', 'COUNTYFP': '000', 'NAME': 'HighlightThePlace'}
+                feature=create_feature(highlight_circ, curr_props)
+                res.append(feature)
         return res
 
+    '''Get the buffer circle highlighting where the contained_geom is if it's quite small
+        res is a list of features (geom and props), contained_geom is the geometry, None if 
+    it's not necessary
+    '''
+    def get_highlight_circle(self, res, contained_geom):
+        containing_areas=0
+        max_dist=0
+        for geom in [feat.geom for feat in res]:
+            containing_areas+=geom.area
+        if contained_geom.area/containing_areas < self.max_area_for_circle:
+            # Find a good bound for the circle
+            my_hull=contained_geom.convex_hull
+            centroid=contained_geom.centroid
+            for curr_pt in [Point(x) for x in my_hull.exterior.coords]:
+                temp_dist=curr_pt.distance(centroid)
+                if temp_dist>max_dist:
+                    max_dist=temp_dist
+            return centroid.buffer(max_dist*self.high_exp_factor)
+        else:
+            return None
+        return None
+    
     # get the main geometry 
     def get_main_geom(self, attr=None, main_filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False):
         """

@@ -26,7 +26,9 @@ def make_this_place(K, css, curr_state, curr_place):
        "offset": {"x": -0., "y": 0},
        "scale": 10.0,
        "sidelayer":"countylayer",
-       "specialstyle": "#statelayer[COUNTYFP=<SPECIAL_FIPS>]\n{\n\tfill: #e4744f;\n}\n"  # special style styles a special feature in each layer
+       "specialstyle": "#statelayer[COUNTYFP=<SPECIAL_FIPS>]\n{\n\tfill: #e4744f;\n}\n"+
+       "#countylayer[NAME=HighlightThePlace]\n{\n\tstroke-width: 1px;\n\t"+
+       "stroke: red;\n}\n"# special style styles a special feature in each layer
        },
        
        "placelayer": {
@@ -66,7 +68,7 @@ def make_this_place(K, css, curr_state, curr_place):
     }
     print '** Begin generating {0}'.format(curr_place)
     #generate_place(cfg, None, css, curr_state, curr_place)
-    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place, cache_bounds=True)
+    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place, cache_bounds=True, cache_view=True)
     print '** End generating {0}'.format(curr_place)
 
 

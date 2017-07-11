@@ -2,7 +2,7 @@ import re
 from layersource import handle_layer_source
 from filter import filter_record
 from geometry import BBox, create_feature
-
+from copy import deepcopy
 
 _verbose = False
 
@@ -24,6 +24,10 @@ class MapLayer(object):
         self.map = _map
         self.cache = cache
         self.special_fips = special_fips
+        if 'features' in cache:
+            self.proj_feat_cache=cache['features']
+        else:
+            cache['features'] = self.proj_feat_cache={}
         if 'class' not in options:
             self.classes = []
         elif isinstance(options['class'], basestring):
@@ -127,12 +131,16 @@ class MapLayer(object):
         layer.special_fips=[]
         for feature in features:
             #print 'feature={0}'.format(feature)
-
             if 'sidelayer' in layer.options:
                 #print 'projecting with side_proj'
                 feature.project(layer.map.side_proj)
+            elif 'COUNTYFP' in feature.props and feature.props['COUNTYFP'] in layer.proj_feat_cache:
+                feature.geometry=deepcopy(layer.proj_feat_cache[feature.props['COUNTYFP']])
+                #print 'Found cached feature {0}'.format(feature.props['NAME'])
             else:
                 feature.project(layer.map.proj)
+                layer.proj_feat_cache[feature.props['COUNTYFP']]=deepcopy(feature.geometry)
+                #print 'Caching feature {0}'.format(feature.props['NAME'])
             curr_fp=''
             if 'sidelayer' in layer.options and layer.options['sidelayer'] == layer.id:
 

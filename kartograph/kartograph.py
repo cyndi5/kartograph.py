@@ -27,13 +27,14 @@ class Kartograph(object):
     def __init__(self):
         self.layerCache = {}
         self.boundCache = {}
+        self.viewCache = {}
         self.lsad_map={'06': 'County', '15': 'Parish'}
         self.state_fips={'17': 'Illinois','22': 'Louisiana'}
         pass
 
     # new render field to provide an option for rendering wiki places without
     # destroying rest of code
-    def generate(self, opts, outfile=None, format='svg', preview=None, stylesheet=None, render_format='wikiplace', curr_place=00000, cache_bounds=False):
+    def generate(self, opts, outfile=None, format='svg', preview=None, stylesheet=None, render_format='wikiplace', curr_place=00000, cache_bounds=False, cache_view = False):
         """
         Generates a the map and renders it using the specified output format.
         """
@@ -55,7 +56,7 @@ class Kartograph(object):
         curr_place_name=''
         curr_state_name=''
         curr_state_fips=''
-        _map = Map(opts, self.layerCache, format=format,boundCache=self.boundCache, cache_bounds=cache_bounds)
+        _map = Map(opts, self.layerCache, format=format,boundCache=self.boundCache, cache_bounds=cache_bounds, viewCache=self.viewCache, cache_view=cache_view)
         for layer in _map.layers:
             if layer.id=='countylayer':
                 # should be just one feature, not anymore but whatever

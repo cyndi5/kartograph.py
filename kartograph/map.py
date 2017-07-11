@@ -28,9 +28,10 @@ verbose = False
 
 class Map(object):
 
-    def __init__(me, options, layerCache, format='svg', src_encoding=None,boundCache = None, cache_bounds=False):
+    def __init__(me, options, layerCache, format='svg', src_encoding=None,boundCache = None, cache_bounds=False, viewCache = {}, cache_view = False):
         me.options = options
         me.format = format
+        me.viewCache = viewCache
 #        print 'map.init : me.options={0}'.format(me.options)
         # List and dictionary references to the map layers.
         me.layers = []
@@ -67,22 +68,22 @@ class Map(object):
             me.layers.append(layer)
             me.layersById[layer_id] = layer
 
+        # Add red circle around place if it's too small? Wait, how do we know?
         layer = me.layersById['placelayer']
         layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
 
         #       First, load the main_geometry of the place we want
         me._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
-        #print 'main_geom={0}'.format(me._main_geom)
+    
         # Initialize the projection that will be used in this map. This sounds easier than
-        
         # it is since we need to compute lot's of stuff here.
-        #print 'init projection'
 
-        #me._bounding_geometry_cache=me._get_bounding_geometry()
+
         me.proj = me._init_projection()
         me.side_proj = me._init_side_projection()
         #print '**me.side_proj={0}'.format(me.side_proj)
 
+        # cache the bounding geometry for state to avoid recomputing
         if 'bounding_geometry' not in boundCache and cache_bounds:
             boundCache['bounding_geometry'] =  deepcopy(me._bounding_geometry_cache)
 
