@@ -1,13 +1,33 @@
-# Installing Kartograph on Windows
+---
+layout: docs
+title: Installing Kartograph.py on Windows
+---
 
-## Installing PostgreSQL and PostGIS
+← [Return to Kartograph.py Docs](/docs/kartograph.py/)
 
-Install PostgreSQL using the [one-click installer](http://www.enterprisedb.com/products-services-training/pgdownload) (e.g. ``postgresql-9.1.4-1-windows.exe``). During install you will be asked for a master password, which you need to keep for later. 
+# Installing Kartograph.py on Windows
 
-* At the end of the install you will be asked to install the Stack Builder. Say yes, and install *Spatial Extensions/PostGIS 2.0 for PostgreSQL 9.1 v 2.0.0*.
-* Instead of using the Stack Builder you can also install PostGIS seperately using the [one-click installer](http://postgis.refractions.net/download/windows/). Make sure you pick the right build for your PostgreSQL version (e.g. ``postgis-pg91-setup-2.0.1-1.exe``).
+*soon to come*.
 
-Installing PostGIS will also install the required GDAL framework. In case you absolutely don't want to install PostGIS and PostgreSQL you need to install [GDAL](http://pypi.python.org/pypi/GDAL/1.9.1#windows) on your own.
+Do you want to help writing this installation instructions? Please, drop me an [email](hello@kartograph.org).
 
-## Install shapely
+## Pre-requirements
+
+Kartograph depends on the following software packages:
+* [Python 2.7.x](http://python.org/download/) + [setuptools](http://pypi.python.org/packages/2.7/s/setuptools/setuptools-0.6c11.win32-py2.7.exe#md5=57e1e64f6b7c7f1d2eddfc9746bbaf20)
+* [GDAL](http://pypi.python.org/pypi/GDAL/1.9.1#windows)
+* [shapely](http://pypi.python.org/pypi/Shapely/1.0.14#downloads)
+* optional: [PostgreSQL](http://www.postgresql.org/download/windows/) and [PostGIS](http://postgis.refractions.net/download/windows/)
+
+You may need to install MinGW to compile some of the Python extensions during build.
+
+## Install Kartograph
+
+* Download and unzip the [Kartograph repository as ZIP file](https://github.com/kartograph/kartograph.py/zipball/master).
+
+* From the command line, change to the kartograph directory and run the installation script.
+```cmd
+cd c:\path\to\kartograph
+python setup.py install
+```
 
