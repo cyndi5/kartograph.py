@@ -32,6 +32,7 @@ class Map(object):
         me.options = options
         me.format = format
         me.viewCache = viewCache
+        me.cache_view=cache_view
 #        print 'map.init : me.options={0}'.format(me.options)
         # List and dictionary references to the map layers.
         me.layers = []
@@ -131,7 +132,10 @@ class Map(object):
         # to clip away unneeded geometry unless *cfg['export']['crop-to-view']* is set to false.
         me.view_poly = me._init_view_poly()
 
-        me._project_to_view()
+        if me.cache_view:
+            me._project_to_view_cached()
+        else:
+            me._project_to_view()
 
        
         # In each layer we will join polygons.
@@ -177,6 +181,25 @@ class Map(object):
         for layer in self.layers:
             for feature in layer.features:
                 feature.project_view(self.view)
+
+    # Project features to view coordinates using cache
+    def _project_to_view_cached(self):
+        bbox_str=str(self.view.bbox)
+        if bbox_str not in self.viewCache:
+            # add a viewCache for this bbox
+            self.viewCache[bbox_str]={}
+        for layer in self.layers:
+            if layer.id not in self.viewCache[bbox_str]:
+                self.viewCache[bbox_str][layer.id]={}
+            for feature in layer.features:
+                if feature.props['NAME'] not in self.viewCache[bbox_str][layer.id]:
+                    feature.project_view(self.view)
+                    self.viewCache[bbox_str][layer.id][feature.props['NAME']]=deepcopy(feature)
+                   
+                else:
+                    #print('Cached {0}'.format(feature.props['NAME']))
+                    feature.geometry=deepcopy(self.viewCache[bbox_str][layer.id][feature.props['NAME']].geometry)
+                    #print 'cached feature {0}'.format(self.viewCache[bbox_str][layer.id][feature.props['NAME']])
     
     # Scale and offset the side features
     def _scale_offset_side_features(self):

@@ -249,9 +249,9 @@ class SvgRenderer(MapRenderer):
                             node.setAttribute(prop, str(feat_css[prop]))
                         g.appendChild(node)
                     else:
-                        print 'NOde fail\n\n'
+#                        print 'NOde fail'
                         pass
-                        sys.stderr.write("feature.to_svg is None"+str(feat))
+                        sys.stderr.write("feature.to_svg is None, "+str(feat))
                 if lbl is not False:
                     self._render_label(layer, feat, lbl)
 

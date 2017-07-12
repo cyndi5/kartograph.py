@@ -32,7 +32,7 @@ class ShapefileLayer(LayerSource):
         self.recs = []
         self.intersect_tol=.3
         self.max_area_for_circle=.001
-        self.high_exp_factor=1.5
+        self.high_exp_factor=2.0
         self.shapes = {}
         self.geoms = {}
         self.load_records()
