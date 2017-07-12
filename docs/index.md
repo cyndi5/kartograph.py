@@ -1,71 +1,46 @@
 ---
 layout: docs
-title: Kartograph.py Docs
+title: Kartograph.py Fork for Wikipedia Docs
 ---
 
 # Kartograph.py Documentation
 
-This documentation refers to the latest version of Kartograph. *Work in progress.*
+This documentation refers to the latest version of Kartograph For. *Work in progress.*
 
-## Installing Kartograph.py
-
-To install Kartograph.py you need to run Python (something like 2.7) and a couple of other frameworks.
-
-* Installing on [Ubuntu](install-ubuntu.html)
-* Installing on [Mac OS X](install-macosx.html)
-* Installing on [Windows](install-windows.html)
-
-After you installed all the pre-requisites, installing Kartograph.py should be as easy as
-
-    python setup.py install
 
 ## Using Kartograph.py
 
-Essentially there are two different ways of using Kartograph.py: the command-line or using the Python library.
-
-### Kartograph.py as a command line utility
-
-The installation script should provide you the Kartograph command line interface. To create a map, you need to write a map configuration first. Kartograph accepts JSON or YAML.
-
-The basic usage is
-
-    kartograph [MAP CONFIG]
-
-This will write the map to standard output. You can write maps to a file using ``-o`` or ``--output`` option.
-
-    kartograph config.json -o mymap.svg
-
-Using ``--preview`` or ``-p` you can write the map to a temporary file and open it right after launch. The command to open the SVG depends on your operating system.
-
-    kartograph config.json --preview
-
-You can overwrite the default command by setting the environment variable ``KARTOGRAPH_PREVIEW``.
-
-    export KARTOGRAPH_PREVIEW=firefox
-    kartograph config.json --preview
-
-For map styling you can use the ``--style`` / ``-s`` option;
-
-    kartograph -s styles.css config.json -o mymap.svg
-
-**Hint:** If you have some specific locations on your system where you store your raw geo data (such as shapefiles), you can tell Kartograph about them by setting the ``KARTOGRAPH_DATA`` environment variable. Kartograph will then look in these directories if it cannot find a shapefile.
-
-    # on mac/linux:
-    export KARTOGRAPH_DATA=/path/to/my/shapefiles:/another/path
-
-    # on windows
-    set KARTOGRAPH_DATA=c:\path\to\my\shapefiles;c:\another\path
-
-As of version 0.6.3 you can force Kartograph to pretty-print the SVG using ``--pretty-print`` or ``-P``.
+	
 
 
 ### Using Kartograph.py as Python module
 
-The second way is to include Kartograph in a Python script. You could
+For now, one should only use Kartograph in a Python script. In
+particular, after having downloaded the [latest Gazetteer
+file](https://www.census.gov/geo/maps-data/data/gazetteer.html) for
+the state in question from the Census Bureau into the ```tests/wiki```
+directory and the cartographic
+boundary shapefiles into the directory for both
+[places in the desired state](https://www.census.gov/geo/maps-data/data/cbf/cbf_place.html)
+and
+[counties (at 500k resolution)](https://www.census.gov/geo/maps-data/data/cbf/cbf_counties.html)
 
-    from kartograph import Kartograph
-    K = Kartograph()
-    K.generate(config, outfile='mymap.svg')
+[and uncompress them into the ```tests\wiki``` directory as well]
+from the command line you should run 
+
+	python generatefromgazetteer.py --help
+	
+to generate a help message.
+
+An actual run of this helper script to generate maps for all places in a state (which can be
+uploaded and then added to pages via the [CenPop web app/script]
+(https://en.wikipedia.org/wiki/User:DemocraticLuntz/CenPop) will
+potentially be as follows (to generate for incorporated places alone in
+Illinois, using the default style file
+[as well as the additional styling that currently occurs adaptively from the script but should probably be changed to only happen in the style file ...). 
+
+	python generatefromgazetteer.py -s 17 -y 2016 -n
+
 
 The following chapters will cover the details of the map configuration syntax. The example configurations are shown in JSON format.
 
