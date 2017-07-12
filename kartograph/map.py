@@ -238,11 +238,10 @@ class Map(object):
             #print 'Adding on left'
             self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/6.-self._side_projected_bounds.width
             self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top+self._projected_bounds.height/2-self._side_projected_bounds.height/2.
-        #else:
-            # Add some breathing room on the bottom
-            #print 'Adding on bottom'
-         #   self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.bottom+self._projected_bounds.height/6.
-          #  self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left+self._projected_bounds.width/2.-self._side_projected_bounds['width']/2.
+        else:
+            #print 'Adding on left'
+            self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/6.-self._side_projected_bounds.width
+            self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top+self._projected_bounds.height/2-self._side_projected_bounds.height/2.
         #print 'self._next_side_offset={0}'.format(self._next_side_offset)
          # transform to offset the sidelayers
         new_proj_bbox=BBox()
