@@ -31,15 +31,18 @@ class Map(object):
     def __init__(me, options, layerCache, format='svg', src_encoding=None,boundCache = None, cache_bounds=False, viewCache = {}, cache_view = False):
         me.options = options
         me.format = format
+
+        # We will cache the projections to the view as they will be the same whenever state and county are the same 
         me.viewCache = viewCache
         me.cache_view=cache_view
+        me.boundCache = boundCache
+        me.cache_bounds = cache_bounds
 #        print 'map.init : me.options={0}'.format(me.options)
         # List and dictionary references to the map layers.
         me.layers = []
         me.layersById = {}
+        
         # We will cache the bounding geometry since we need it twice, eventually.
-      
-        # super caching it since it will be the same in each state???
         if 'bounding_geometry' in boundCache and cache_bounds and boundCache['bounding_geometry'] is not None:
             me._bounding_geometry_cache = boundCache['bounding_geometry']
            # print 'me._bounding_geometry_cache={0}'.format(me._bounding_geometry_cache)
@@ -59,73 +62,19 @@ class Map(object):
         me._source_encoding = src_encoding
 
         # Construct [MapLayer](maplayer.py) instances  and store references
-        # to the layers in a list and a dictionary. 
-        # I wish I remember why I split it, should've commented it ...
+        # to the layers in a list and a dictionary (I guess both for many layers)
         for layer_cfg in options['layers']:
-            #print 'layer_cfg={0}\n'.format(layer_cfg)
             layer_id = layer_cfg['id']
-            #if layer_id=='statelayer':
             layer = MapLayer(layer_id, layer_cfg, me, layerCache)
             me.layers.append(layer)
             me.layersById[layer_id] = layer
 
-        # Add red circle around place if it's too small? Wait, how do we know?
-        layer = me.layersById['placelayer']
-        layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
-
-        #       First, load the main_geometry of the place we want
-        me._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
-    
-        # Initialize the projection that will be used in this map. This sounds easier than
-        # it is since we need to compute lot's of stuff here.
-
-
-        me.proj = me._init_projection()
-        me.side_proj = me._init_side_projection()
-        #print '**me.side_proj={0}'.format(me.side_proj)
-
-        # cache the bounding geometry for state to avoid recomputing
-        if 'bounding_geometry' not in boundCache and cache_bounds:
-            boundCache['bounding_geometry'] =  deepcopy(me._bounding_geometry_cache)
-
-        # Compute the bounding geometry for the map.
-        me.bounds_poly = me._init_bounds()
-   
-
-        # Load all features that could be visible in each layer. The feature geometries will
-        # be projected 
-
-        #print 'me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
-        for layer in me.layers:
-            if "sidelayer" in layer.options:
-                layer.options["init_offset"]=(0,0) #me._init_offset
-               
-            else:
-                layer.options["init_offset"]=(0, 0)
-#            print "getting features for layer={0}".format(layer)
-            if layer.id==me.options['bounds']['data']['sidelayer']:
-                layer.get_features(contained_geom=me._main_geom)
-       
-#        print 'Next me._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
-        for layer in me.layers:
-            if "sidelayer" in layer.options:
-                layer.options["init_offset"]=(0,0) #me._init_offset
-                #print 'layer.id={0}, init_offset={1}'.format(layer.id,me._init_offset)
-            else:
-                #print "No sidelayer"
-                layer.options["init_offset"]=(0, 0)
-#            print "getting features for layer={0}".format(layer)
-            if layer.id!=me.options['bounds']['data']['sidelayer']:
-                layer.get_features()
-                #print "done getting features for layer={0}".format(layer.id)
-
-       
-        # initialize the projected bounds of the main layer and the sidelayer
-        me._auto_scale_factor=me._init_projected_bounds()
-        
-        # scale and offset the side features
-        me._scale_offset_side_features()
-        
+        data = me.options['bounds']['data']
+        if 'sidelayer' in data:
+            me._init_with_sidelayer()
+        else:
+            # only handles with sidelayers for now
+            raise KartographError('sidelayer not found')
         # Do the view AFTER projecting 
         me.view = me._get_view()
         # Get the polygon (in fact it's a rectangle in most cases) that will be used
@@ -152,6 +101,68 @@ class Map(object):
         # from political boundaries.
         me._subtract_layers()
 
+    # Initialize things assuming 
+    def _init_with_sidelayer(self):
+               
+        # Add red circle around place if it's too small? Wait, how do we know?
+        self._main_geom = None
+        for layer in self.layers:
+            if "main-filter" in layer.options and layer.options["main-filter"] is not False:
+                #print 'layer.options={0}'.format(str(layer.options))
+                layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
+        #       First, load the geometry of the place we want to highlight 
+                self._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
+    
+        # Initialize the projections that will be used in this map.
+        # There will be one projection focusing on the main layer 
+        # 
+        # This sounds easier than
+        # it is since we need to compute lots of stuff here.
+        self.proj = self._init_projection()
+        self.side_proj = self._init_side_projection()
+        #print '**self.side_proj={0}'.format(self.side_proj)
+
+        # cache the bounding geometry for state to avoid recomputing
+        if 'bounding_geometry' not in self.boundCache and self.cache_bounds:
+            self.boundCache['bounding_geometry'] =  deepcopy(self._bounding_geometry_cache)
+
+        # Compute the bounding geometry for the map.
+        self.bounds_poly = self._init_bounds()
+   
+
+        # Load all features that could be visible in each layer. The feature geometries will
+        # be projected 
+
+        #print 'self._side_bounding_geometry.hash={0}'.format(hash(str(self._side_bounding_geometry)))
+        for layer in self.layers:
+            if "sidelayer" in layer.options:
+                layer.options["init_offset"]=(0,0) #me._init_offset
+               
+            else:
+                layer.options["init_offset"]=(0, 0)
+#            print "getting features for layer={0}".format(layer)
+            if layer.id==self.options['bounds']['data']['sidelayer']:
+                layer.get_features(contained_geom=self._main_geom)
+       
+#        print 'Next self._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
+        for layer in self.layers:
+            if "sidelayer" in layer.options:
+                layer.options["init_offset"]=(0,0) #self._init_offset
+                #print 'layer.id={0}, init_offset={1}'.format(layer.id,self._init_offset)
+            else:
+                #print "No sidelayer"
+                layer.options["init_offset"]=(0, 0)
+#            print "getting features for layer={0}".format(layer)
+            if layer.id!=self.options['bounds']['data']['sidelayer']:
+                layer.get_features()
+                #print "done getting features for layer={0}".format(layer.id)
+
+       
+        # initialize the projected bounds of the main layer and the sidelayer
+        self._auto_scale_factor=self._init_projected_bounds()
+        
+        # scale and offset the side features
+        self._scale_offset_side_features()
     # Initialize the projected bounds after getting layers and projecting 
     def _init_projected_bounds(self):
         opts=self.options

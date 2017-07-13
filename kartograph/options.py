@@ -339,6 +339,7 @@ def parse_bounds(opts):
         bounds['scale-sidelayer']="manual"
     if 'scale-sidelayer-factor' not in bounds:
         bounds['scale-sidelayer-factor']=.8
+
     if 'crop' not in bounds:
         bounds['crop'] = 'auto'
 # Note: padding in bounds specifies how much extra space we give ourselves
@@ -384,14 +385,6 @@ def parse_bounds(opts):
         if "layer" not in data or not is_str(data["layer"]):
             # using the first layer for bound
             data["layer"] = opts['layers'][0]['id']
-         #   print 'not found layer, using {0}'.format(data["layer"])
-
-            #for i in opts['layers']:
-             #   data["layer"].append(i['id'])
-            #data["layer"] = opts['layers'][0]['id']
-            # raise Error('you must specify a layer for bounds mode ' + mode)
-        #else:
-        #    print 'data["layer"]={0}'.format(data["layer"])
         if "sidelayer" not in data or not is_str(data["sidelayer"]):
             if len(opts['layers'])>1:
                 data["sidelayer"] = opts['layers'][1]['id']
@@ -454,3 +447,4 @@ def parse_export(opts):
 
     if 'prettyprint' not in exp:
         exp['prettyprint'] = False
+

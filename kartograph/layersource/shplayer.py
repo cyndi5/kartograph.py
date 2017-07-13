@@ -31,8 +31,8 @@ class ShapefileLayer(LayerSource):
         self.sr = shapefile.Reader(src)
         self.recs = []
         self.intersect_tol=.3
-        self.max_area_for_circle=.001
-        self.high_exp_factor=2.0
+        self.max_area_for_circle=.002
+        self.high_exp_factor=1.75
         self.shapes = {}
         self.geoms = {}
         self.load_records()

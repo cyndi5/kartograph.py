@@ -29,7 +29,7 @@ class Kartograph(object):
         self.boundCache = {}
         self.viewCache = {}
         self.lsad_map={'06': 'County', '15': 'Parish'}
-        self.state_fips={'17': 'Illinois','22': 'Louisiana'}
+        self.state_fips={'17': 'Illinois','22': 'Louisiana','24': 'Maryland', '42': 'Pennsylvania', '55': 'Wisconsin'}
         pass
 
     # new render field to provide an option for rendering wiki places without
@@ -62,6 +62,7 @@ class Kartograph(object):
                 # should be just one feature, not anymore but whatever
                 feature = layer.features[0]
                 countyalt_file=countyalt_file+feature.props['NAME']+'_'+self.lsad_map[feature.props['LSAD']]
+                #print 'Feature={0}'.format(feature.props)
                 curr_state_name=self.state_fips[feature.props['STATEFP']]
                 curr_state_fips=feature.props['STATEFP']
             for feature in layer.features:
