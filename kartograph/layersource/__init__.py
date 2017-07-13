@@ -65,6 +65,9 @@ def handle_layer_source(layer, cache={}):
             return GraticuleLayer()
         elif layer['special'] == 'sea':
             return SeaLayer()
+    else:
+        # No source for highlights
+        return None
 
 def _get(layer, prop, default=None):
     if prop in layer:

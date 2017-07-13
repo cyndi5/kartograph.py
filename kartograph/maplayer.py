@@ -3,6 +3,10 @@ from layersource import handle_layer_source
 from filter import filter_record
 from geometry import BBox, create_feature
 from copy import deepcopy
+from osgeo.osr import SpatialReference
+import pyproj
+from shapely.geometry import MultiPoint, Point
+
 
 _verbose = False
 
@@ -24,9 +28,11 @@ class MapLayer(object):
         self.map = _map
         self.cache = cache
         self.special_fips = special_fips
-        if 'features' in cache:
+        self.max_area_for_circle=.002
+        self.high_exp_factor=2.00
+        if cache is not None and 'features' in cache:
             self.proj_feat_cache=cache['features']
-        else:
+        elif cache is not None:
             cache['features'] = self.proj_feat_cache={}
         if 'class' not in options:
             self.classes = []
@@ -77,7 +83,7 @@ class MapLayer(object):
                 # [minLon, minLat, maxLon, maxLat]
                 bbox = opts['bounds']['crop']
             if "sidelayer" in layer.options and opts['bounds']['data']['sidelayer']!=layer.id and layer.map._side_bounding_geometry is not None:
-                # We are cropping based on whether it's in the sidelayer
+                # We are cropping/removing stuff based on whether it intersects the sidelayer
                 bounding_geom=layer.map._side_bounding_geometry
                 #print('\tSetting bounding_geom to side_bounding_geometry, hash of which is {0}'.format(hash(str(bounding_geom))))
         # If the layer has the "src" property, it is a **regular map layer** source, which
@@ -118,13 +124,6 @@ class MapLayer(object):
                 features = layer.source.get_features(layer.map.proj)
                 is_projected = True
         
-        #print 'Finished with shapelayer call'#.format(len(features))
-
-        # Add bounding_geom to features, see what happens */
-       # if bounding_geom is not None:
-        #    feature = create_feature(bounding_geom, {})
-         #   features.append(feature)
-
         # If we're in the sidelayer main (e.g. countylayer for our application),
         # note that EVERY county should be specially styled
 
@@ -160,3 +159,40 @@ class MapLayer(object):
 #            if feature.geometry and feature.geometry.intersects(layer.map.view_poly)]
         layer.features = features
         #print 'len of features={0}'.format(len(layer.features))
+
+    # Finds the first feature in the layer whose props match, return None if none found 
+    def find_feature(self, props):
+        for feat in self.features:
+            if feat.props==props:
+                return feat
+        return None
+
+    # Add a highlighter to this layer, containing areas is a list of
+    # features, feat is a single feature that we want to highlight
+    def add_highlight(self, containing_areas, feat):
+        new_feat_geom = self.get_high_circle(containing_areas, feat.geometry)
+        if new_feat_geom is not None:
+            curr_props={'STATEFP':'00', 'COUNTYFP': '000', 'NAME': 'Highlight of '+feat.props['NAME']}
+            high_feat=create_feature(new_feat_geom, curr_props)
+            self.features=[high_feat]
+        else:
+            self.features=[]
+
+        
+    def get_high_circle(self, res, contained_geom):
+        containing_areas=0
+        max_dist=0
+        for geom in [feat.geom for feat in res]:
+            containing_areas+=geom.area
+        if contained_geom.area/containing_areas < self.max_area_for_circle:
+            # Find a good bound for the circle
+            my_hull=contained_geom.convex_hull
+            centroid=contained_geom.centroid
+            for curr_pt in [Point(x) for x in my_hull.exterior.coords]:
+                temp_dist=curr_pt.distance(centroid)
+                if temp_dist>max_dist:
+                    max_dist=temp_dist
+            return centroid.buffer(max_dist*self.high_exp_factor)
+        else:
+            return None
+        return None

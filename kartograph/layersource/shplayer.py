@@ -243,41 +243,25 @@ class ShapefileLayer(LayerSource):
         #self.proj=None
 #        print 'res={0}'.format(res)
 
-        # Add a feature consisting of a circle around the contaied_geom if it's too small
-        if contained_geom is not None and bounding_geom is None:
-            highlight_circ=self.get_highlight_circle(res, contained_geom)
-            if highlight_circ is not None:
-                #print('\tAdding a highlight_circ')
-                # Create and append feature
-                curr_props={'STATEFP':'00', 'COUNTYFP': '000', 'NAME': 'HighlightThePlace'}
-                feature=create_feature(highlight_circ, curr_props)
-                res.append(feature)
+        # Add a feature consisting of a circle around the contained_geom if it's too small
+        # if contained_geom is not None and bounding_geom is None:
+        #     highlight_circ=self.get_highlight_circle(res, contained_geom)
+        #     if highlight_circ is not None:
+        #         #print('\tAdding a highlight_circ')
+        #         # Create and append feature
+        #         curr_props={'STATEFP':'00', 'COUNTYFP': '000', 'NAME': 'HighlightThePlace'}
+        #         feature=create_feature(highlight_circ, curr_props)
+        #         res.append(feature)
         return res
 
     '''Get the buffer circle highlighting where the contained_geom is if it's quite small
         res is a list of features (geom and props), contained_geom is the geometry, None if 
     it's not necessary
     '''
-    def get_highlight_circle(self, res, contained_geom):
-        containing_areas=0
-        max_dist=0
-        for geom in [feat.geom for feat in res]:
-            containing_areas+=geom.area
-        if contained_geom.area/containing_areas < self.max_area_for_circle:
-            # Find a good bound for the circle
-            my_hull=contained_geom.convex_hull
-            centroid=contained_geom.centroid
-            for curr_pt in [Point(x) for x in my_hull.exterior.coords]:
-                temp_dist=curr_pt.distance(centroid)
-                if temp_dist>max_dist:
-                    max_dist=temp_dist
-            return centroid.buffer(max_dist*self.high_exp_factor)
-        else:
-            return None
-        return None
+
     
-    # get the main geometry 
-    def get_main_geom(self, attr=None, main_filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False):
+    # get a feature for the main geometry (to get the props too)
+    def get_main_feat(self, attr=None, main_filter=None, bbox=None, ignore_holes=False, min_area=False, charset='utf-8',bounding=False):
         """
         ### Get features
         """
@@ -335,9 +319,9 @@ class ShapefileLayer(LayerSource):
                 shp.bounding=bounding
                 shp.the_feat_name=the_feat_name
                 geom = shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
-                
+                feat = create_feature(geom, props)
                # ..and return the geom of the place we wanted 
-                return geom
+                return feat
         #self.proj=None
         #print 'res={0}'.format(res)
         raise KartographError('having problems with main feature') 

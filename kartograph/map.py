@@ -7,6 +7,7 @@ from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
 from geometry.feature import MultiPolygonFeature
 from math import sqrt
+from options import parse_options, parse_layer_offset, parse_layer_scale
 
 
 from copy import deepcopy
@@ -75,6 +76,7 @@ class Map(object):
         else:
             # only handles with sidelayers for now
             raise KartographError('sidelayer not found')
+        
         # Do the view AFTER projecting 
         me.view = me._get_view()
         # Get the polygon (in fact it's a rectangle in most cases) that will be used
@@ -86,7 +88,6 @@ class Map(object):
         else:
             me._project_to_view()
 
-       
         # In each layer we will join polygons.
  #       me._join_features()
         # Eventually we crop geometries to the map bounding rectangle.
@@ -103,15 +104,21 @@ class Map(object):
 
     # Initialize things assuming 
     def _init_with_sidelayer(self):
-               
+        opts=self.options
+        data = opts['bounds']['data']               
         # Add red circle around place if it's too small? Wait, how do we know?
-        self._main_geom = None
+        self._main_feat = None
+        mainFilterLayer = None
+        
         for layer in self.layers:
+            #print 'layer.options={0}'.format(str(layer.options))
             if "main-filter" in layer.options and layer.options["main-filter"] is not False:
                 #print 'layer.options={0}'.format(str(layer.options))
+                mainFilterLayer = layer
                 layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
         #       First, load the geometry of the place we want to highlight 
-                self._main_geom = layer.source.get_main_geom(main_filter=layerMainFilter)
+                self._main_feat = layer.source.get_main_feat(main_filter=layerMainFilter)
+                self._main_geom = self._main_feat.geometry
     
         # Initialize the projections that will be used in this map.
         # There will be one projection focusing on the main layer 
@@ -133,27 +140,13 @@ class Map(object):
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected 
 
-        #print 'self._side_bounding_geometry.hash={0}'.format(hash(str(self._side_bounding_geometry)))
+        # Specifically load the sidelayer based on whether it intersects with the main geometry
+        sidelayer = self.layersById[self.options['bounds']['data']['sidelayer']]
+        sidelayer.get_features(contained_geom=self._main_geom)
+
+        # Now load the rest of the layers 
         for layer in self.layers:
-            if "sidelayer" in layer.options:
-                layer.options["init_offset"]=(0,0) #me._init_offset
-               
-            else:
-                layer.options["init_offset"]=(0, 0)
-#            print "getting features for layer={0}".format(layer)
-            if layer.id==self.options['bounds']['data']['sidelayer']:
-                layer.get_features(contained_geom=self._main_geom)
-       
-#        print 'Next self._side_bounding_geometry.hash={0}'.format(hash(str(me._side_bounding_geometry)))
-        for layer in self.layers:
-            if "sidelayer" in layer.options:
-                layer.options["init_offset"]=(0,0) #self._init_offset
-                #print 'layer.id={0}, init_offset={1}'.format(layer.id,self._init_offset)
-            else:
-                #print "No sidelayer"
-                layer.options["init_offset"]=(0, 0)
-#            print "getting features for layer={0}".format(layer)
-            if layer.id!=self.options['bounds']['data']['sidelayer']:
+            if layer.id!=data['sidelayer']:
                 layer.get_features()
                 #print "done getting features for layer={0}".format(layer.id)
 
@@ -163,12 +156,24 @@ class Map(object):
         
         # scale and offset the side features
         self._scale_offset_side_features()
+
+        # add a new highlight layer
+        main_feat = mainFilterLayer.find_feature(self._main_feat.props)
+        highlighter_opts = {"id": "highlightlayer","sidelayer": "countylayer","simplify": False, "crop-to": False, "subtract-from": False, "specialstyle": None, "render": True, "labeling": False,
+        "attributes":[]}
+        parse_layer_offset(highlighter_opts)
+        parse_layer_scale(highlighter_opts)
+        # Create the new layer
+        highlight_layer = MapLayer(highlighter_opts['id'], highlighter_opts, self, None)
+        highlight_layer.add_highlight(sidelayer.features, main_feat)
+        self.layers.append(highlight_layer)
+        
     # Initialize the projected bounds after getting layers and projecting 
     def _init_projected_bounds(self):
         opts=self.options
+        data = opts['bounds']['data']
         sidelayer_bbox=BBox()
         layer_bbox=BBox()
-        data = opts['bounds']['data']
         auto_scale_factor=1
         # Set up initial projected bounding box
         if data['sidelayer'] in self.layersById:
@@ -216,30 +221,28 @@ class Map(object):
     def _scale_offset_side_features(self):
         opts=self.options
         self._side_offset=self._get_side_offset()
-        mybbox=BBox()
-        statebbox=BBox()
+        sidebbox=BBox() 
+        mainbbox=BBox()
         data = opts['bounds']['data']
         if data['layer'] in self.layersById:
             layer=self.layersById[data['layer']]
             for feature in layer.features:
-                statebbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
-        # Scale the features in the sidelayer if it's countylayer
-        for layer in self.layers:
-            if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
-                for feature in layer.features:
-                    if isinstance(feature,MultiPolygonFeature):
-                        #print 'scaling feature {0}'.format(feature.props['NAME'])
-                        if opts['bounds']['scale-sidelayer']=='auto':
-                            feature.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
-                        else:
-                            feature.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
-                        if layer.id==layer.options['sidelayer']:
-                            temp_bbox=geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"])
-                            #print 'adding to mybbox, {0}, {1}'.format(feature.properties['NAME'], temp_bbox)
-                            mybbox.join(temp_bbox)
-                            #print 'mybbox={0}'.format(mybbox)
-                           # print 'xmin, ymin, xmax, ymax={0},{1},{2},{3}'.format(mybbox.xmin,mybbox.ymin,mybbox.xmax,mybbox.ymax)   
+                mainbbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
 
+                
+        # Scale the features in the layers associated with the sidelayer
+        for layer in [layer for layer in self.layers if "sidelayer" in layer.options]:
+            for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
+                #print 'scaling feature {0}'.format(feature.props['NAME'])
+                if opts['bounds']['scale-sidelayer']=='auto':
+                    feat.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
+                else:
+                    feat.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
+                if layer.id==layer.options['sidelayer']:
+                    # If this is the main layer for the sidelayer we want to use it to
+                    # make the bounding box
+                    temp_bbox=geom_to_bbox(feat.geometry, data["min-area"])
+                    sidebbox.join(temp_bbox)
         # Create a dummy feature to scale the side bounding geometry
 
         temp_feat=create_feature(self._side_bounding_geometry,{})
@@ -256,9 +259,9 @@ class Map(object):
             raise KartographError('layer not found "%s"' % id)
             #return (0,0)
         temp_layer = self.layersById[id]
-        #print 'statebbox={0}'.format(statebbox)
-        self._side_projected_bounds=mybbox
-        self._projected_bounds=statebbox
+        #print 'mainbbox={0}'.format(mainbbox)
+        self._side_projected_bounds=sidebbox
+        self._projected_bounds=mainbbox
         #print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
         #print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
       
