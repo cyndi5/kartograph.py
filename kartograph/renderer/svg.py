@@ -11,6 +11,7 @@ from kartograph.mapstyle import style_diff, remove_unit
 from xml.dom import minidom
 from xml.dom.minidom import parse
 import re
+import operator
 
 
 class SvgRenderer(MapRenderer):
@@ -205,8 +206,9 @@ class SvgRenderer(MapRenderer):
         """
         svg = self.svg
         # label_groups = []
-        for layer in self.map.layers:
-            #print 'Rendering layer {0}'.format(layer.id)
+        sorted_layers=sorted(self.map.layers, key= operator.attrgetter('precedence'), reverse=True)
+        for layer in sorted_layers:
+            self.map.print_debug('Rendering layer {0}'.format(layer.id))
 #            for x in layer.options:
  #               print 'layer.options[{0}]={1}'.format(x,layer.options[x])
             if len(layer.features) == 0:

@@ -123,45 +123,51 @@ def parse_layers(opts):
     opts['layers'] = layers
 
     for layer in opts['layers']:
-        if 'render' not in layer:
-            layer['render'] = True
-        if 'src' not in layer and 'special' not in layer:
-            raise Error('you need to define the source for your layers')
-        if 'src' in layer:
-            # We must not check if the file exists, since
-            # we might deal with a database connection
-            #if not os.path.exists(layer['src']):
-            #    raise Error('layer source not found: ' + layer['src'])
+        parse_curr_layer(layer)
+        
+def parse_curr_layer(layer):
+    if 'render' not in layer:
+        layer['render'] = True
+    if 'src' not in layer and 'special' not in layer:
+        raise Error('you need to define the source for your layers')
+    if 'src' in layer:
+        # We must not check if the file exists, since
+        # we might deal with a database connection
+        #if not os.path.exists(layer['src']):
+        #    raise Error('layer source not found: ' + layer['src'])
+        if 'id' not in layer:
+            layer['id'] = 'layer_' + str(l_id)
+            l_id += 1
+        if 'charset' not in layer:
+            layer['charset'] = 'utf-8'
+    elif 'special' in layer:
+        if layer['special'] == 'graticule':
             if 'id' not in layer:
-                layer['id'] = 'layer_' + str(l_id)
-                l_id += 1
-            if 'charset' not in layer:
-                layer['charset'] = 'utf-8'
-        elif 'special' in layer:
-            if layer['special'] == 'graticule':
-                if 'id' not in layer:
-                    layer['id'] = 'graticule'
-                    if g_id > 0:
-                        layer['id'] += '_' + str(g_id)
-                    g_id += 1
-                parse_layer_graticule(layer)
-            elif layer['special'] == 'sea':
-                if 'id' not in layer:
-                    layer['id'] = 'sea'
-                    if s_id > 0:
-                        layer['id'] += '_' + str(s_id)
-                    s_id += 1
-
-        parse_layer_attributes(layer)
-        parse_layer_labeling(layer)
-        parse_layer_filter(layer)
-        parse_layer_join(layer)
-        parse_layer_simplify(layer)
-        parse_layer_subtract(layer)
-        parse_layer_cropping(layer)
-        parse_layer_offset(layer)
-        parse_layer_scale(layer)
-        parse_layer_specialstyle(layer)
+                layer['id'] = 'graticule'
+                if g_id > 0:
+                    layer['id'] += '_' + str(g_id)
+                g_id += 1
+            parse_layer_graticule(layer)
+        elif layer['special'] == 'sea':
+            if 'id' not in layer:
+                layer['id'] = 'sea'
+                if s_id > 0:
+                    layer['id'] += '_' + str(s_id)
+                s_id += 1
+    # Ensure precedence 
+    if 'precedence' not in layer:
+        layer['precendence']=0
+    parse_layer_attributes(layer)
+    parse_layer_labeling(layer)
+    parse_layer_filter(layer)
+    parse_layer_join(layer)
+    parse_layer_simplify(layer)
+    parse_layer_subtract(layer)
+    parse_layer_cropping(layer)
+    parse_layer_offset(layer)
+    parse_layer_scale(layer)
+    parse_layer_specialstyle(layer)
+        
 
 def parse_layer_specialstyle(layer):
     if 'specialstyle' not in layer:

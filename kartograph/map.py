@@ -7,7 +7,7 @@ from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
 from geometry.feature import MultiPolygonFeature
 from math import sqrt
-from options import parse_options, parse_layer_offset, parse_layer_scale
+from options import parse_curr_layer
 
 
 from copy import deepcopy
@@ -66,6 +66,7 @@ class Map(object):
         # to the layers in a list and a dictionary (I guess both for many layers)
         for layer_cfg in options['layers']:
             layer_id = layer_cfg['id']
+            me.print_debug('layer_id={0}'.format(layer_id))
             layer = MapLayer(layer_id, layer_cfg, me, layerCache)
             me.layers.append(layer)
             me.layersById[layer_id] = layer
@@ -140,7 +141,7 @@ class Map(object):
         # Load all features that could be visible in each layer. The feature geometries will
         # be projected 
 
-        # Specifically load the sidelayer based on whether it intersects with the main geometry
+        # Specifically load the regular sidelayer based on whether it intersects with the main geometry
         sidelayer = self.layersById[self.options['bounds']['data']['sidelayer']]
         sidelayer.get_features(contained_geom=self._main_geom)
 
@@ -148,7 +149,7 @@ class Map(object):
         for layer in self.layers:
             if layer.id!=data['sidelayer']:
                 layer.get_features()
-                #print "done getting features for layer={0}".format(layer.id)
+                self.print_debug("done getting {0} features for layer={1}".format(len(layer.features),layer.id))
 
        
         # initialize the projected bounds of the main layer and the sidelayer
@@ -159,10 +160,11 @@ class Map(object):
 
         # add a new highlight layer
         main_feat = mainFilterLayer.find_feature(self._main_feat.props)
-        highlighter_opts = {"id": "highlightlayer","sidelayer": "countylayer","simplify": False, "crop-to": False, "subtract-from": False, "specialstyle": None, "render": True, "labeling": False,
-        "attributes":[]}
-        parse_layer_offset(highlighter_opts)
-        parse_layer_scale(highlighter_opts)
+        highlighter_opts = {"id": "highlightlayer","sidelayer": "countylayer",
+                                "special": None, "precedence": 0}
+        parse_curr_layer(highlighter_opts)
+        #parse_layer_offset(highlighter_opts)
+        #parse_layer_scale(highlighter_opts)
         # Create the new layer
         highlight_layer = MapLayer(highlighter_opts['id'], highlighter_opts, self, None)
         highlight_layer.add_highlight(sidelayer.features, main_feat)
@@ -232,6 +234,7 @@ class Map(object):
                 
         # Scale the features in the layers associated with the sidelayer
         for layer in [layer for layer in self.layers if "sidelayer" in layer.options]:
+            self.print_debug('scaling {0}'.format(layer.id))
             for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
                 #print 'scaling feature {0}'.format(feature.props['NAME'])
                 if opts['bounds']['scale-sidelayer']=='auto':
@@ -283,7 +286,7 @@ class Map(object):
          # transform to offset the sidelayers
         new_proj_bbox=BBox()
         for layer in self.layers:
-            if "sidelayer" in layer.options and layer.options['sidelayer']=='countylayer':
+            if "sidelayer" in layer.options and layer.options['sidelayer']==data['sidelayer']:
                 for feature in layer.features:
                     if isinstance(feature,MultiPolygonFeature):
                         #print 'offsetting feature {0}'.format(feature.props['NAME'])
@@ -1016,4 +1019,8 @@ class Map(object):
             elif opts['specialstyle'] is not None:
                 ret_style+=opts['specialstyle']
         return ret_style
+
+    def print_debug(self,msg):
+        if verbose:
+            print(msg)
         

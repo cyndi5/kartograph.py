@@ -24,6 +24,7 @@ class MapLayer(object):
         # Store layer properties as instance properties
         self.id = id
         self.options = options
+        self.precedence=options['precedence']
 #        print 'self.options={0}'.format(self.options)
         self.map = _map
         self.cache = cache
