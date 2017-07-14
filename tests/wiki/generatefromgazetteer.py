@@ -77,7 +77,7 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
        "sidelayer":"countylayer"
        }
     print '** Begin generating {0}'.format(curr_place)
-    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place, cache_bounds=True, cache_view=cache_view)
+    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place, cache_bounds=True, cache_view=cache_view,verbose=True)
     print '** End generating {0}'.format(curr_place)
 
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
                first_flag=True
            else:
                field_list = re.split('\t',line)
-               if not (args.nocdp and int(field_list[4])==57) and int(args.minplace)<=int(field_list[1][2:]) and int(args.maxplace)>=int(field_list[1][2:]):
+               if not (args.nocdp and field_list[4]=='57') and int(args.minplace)<=int(field_list[1][2:]) and int(args.maxplace)>=int(field_list[1][2:]):
                    make_this_place(K,css,args.yearfips,args.statefips,field_list[1][2:], args.viewcache, args.showsub)
 
     pr.disable()
