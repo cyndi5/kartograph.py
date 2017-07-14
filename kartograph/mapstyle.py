@@ -71,6 +71,7 @@ def _checkRule(layer_id, layer_classes, fprops, rule):
                 else:
                     match = True
                     for r in p[o:]:
+                       # print('r={0}, type(r)={1}'.format(r,type(r)))
                         if r.type == '[' and r.content[0].type == 'IDENT' and r.content[len(r.content) - 1].type in ('IDENT', 'INTEGER'):
                             key = r.content[0].value
                             val = r.content[len(r.content) - 1].value

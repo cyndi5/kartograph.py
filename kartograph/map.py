@@ -5,7 +5,7 @@ from geometry.utils import join_features
 from geometry import create_feature
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
-from geometry.feature import MultiPolygonFeature
+from geometry.feature import Feature, MultiPolygonFeature
 from math import sqrt
 from options import parse_curr_layer
 
@@ -29,7 +29,8 @@ verbose = False
 
 class Map(object):
 
-    def __init__(me, options, layerCache, format='svg', src_encoding=None,boundCache = None, cache_bounds=False, viewCache = {}, cache_view = False):
+    def __init__(me, options, layerCache, format='svg', src_encoding=None,boundCache = None, cache_bounds=False, viewCache = {}, cache_view = False, verbose = False):
+        me.verbose = verbose
         me.options = options
         me.format = format
 
@@ -144,6 +145,7 @@ class Map(object):
         # Specifically load the regular sidelayer based on whether it intersects with the main geometry
         sidelayer = self.layersById[self.options['bounds']['data']['sidelayer']]
         sidelayer.get_features(contained_geom=self._main_geom)
+        self.print_debug("done getting {0} features for layer={1}".format(len(sidelayer.features),sidelayer.id))
 
         # Now load the rest of the layers 
         for layer in self.layers:
@@ -235,8 +237,11 @@ class Map(object):
         # Scale the features in the layers associated with the sidelayer
         for layer in [layer for layer in self.layers if "sidelayer" in layer.options]:
             self.print_debug('scaling {0}'.format(layer.id))
+           # for feat in layer.features:
+            #    self.print_debug('(A) scaling feature {0}, {1}'.format(feat, feat.props['NAME']))
+
             for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
-                #print 'scaling feature {0}'.format(feature.props['NAME'])
+                self.print_debug('scaling feature {0}'.format(feat.props['NAME']))
                 if opts['bounds']['scale-sidelayer']=='auto':
                     feat.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
                 else:
@@ -246,6 +251,7 @@ class Map(object):
                     # make the bounding box
                     temp_bbox=geom_to_bbox(feat.geometry, data["min-area"])
                     sidebbox.join(temp_bbox)
+                    self.print_debug('sidebbox={0}'.format(sidebbox))
         # Create a dummy feature to scale the side bounding geometry
 
         temp_feat=create_feature(self._side_bounding_geometry,{})
@@ -265,7 +271,7 @@ class Map(object):
         #print 'mainbbox={0}'.format(mainbbox)
         self._side_projected_bounds=sidebbox
         self._projected_bounds=mainbbox
-        #print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
+        self.print_debug('self._side_projected_bounds={0}'.format(self._side_projected_bounds))
         #print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
       
 
@@ -1021,6 +1027,6 @@ class Map(object):
         return ret_style
 
     def print_debug(self,msg):
-        if verbose:
+        if self.verbose:
             print(msg)
         
