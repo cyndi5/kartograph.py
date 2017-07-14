@@ -1,6 +1,6 @@
 #countylayer {
   stroke-width: 2px;
-  fill: #fefefe;
+  /*fill: #fefefe;*/
   stroke-linecap: butt;
   stroke-opacity: 1;
 }
@@ -8,8 +8,15 @@
 {
  fill: #d0d0d0;
 }
+#placelayer[LSAD='57']
+{
+ fill: #ffffff;
+}
 
-
+#countysublayer
+{
+    stroke: #000000;
+}
 
 .water
 {
@@ -27,3 +34,8 @@ fill: #ffffff;
 #   opacity: 0.5;
 }
 
+#highlightlayer
+{
+    stroke: red;
+    stroke-width: 2px;
+}
