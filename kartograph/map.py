@@ -33,7 +33,7 @@ class Map(object):
         me.verbose = verbose
         me.options = options
         me.format = format
-
+        me._position_factor=1.5
         # We will cache the projections to the view as they will be the same whenever state and county are the same 
         me.viewCache = viewCache
         me.cache_view=cache_view
@@ -278,8 +278,9 @@ class Map(object):
         #print 'Pre-second offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
 
         #Choose whether to put sidelayer on side or below, depending
-        
-        if self._side_projected_bounds.width <= self._side_projected_bounds.height*1.25:
+
+        left_good = self._side_projected_bounds.width + self._projected_bounds.width  <= max(self._projected_bounds.height,self._side_projected_bounds.height)*self._position_factor
+        if left_good:
             # Add a little breathing room on the left
             print 'Adding on left'
             self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/6.-self._side_projected_bounds.width

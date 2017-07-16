@@ -86,7 +86,12 @@ def _checkRule(layer_id, layer_classes, fprops, rule):
                             else:
                                 # Fixed to typecast integers so comparisons work
                                 if type(val) is int:
-                                    fprops[key]=int(fprops[key])
+                                    try:
+                                        fprops[key]=int(fprops[key])
+                                    except ValueError:
+                                        print('Int typecasting error')
+                                        match=False
+                                        continue
                                 elif type(val) is float:
                                     fprops[key]=float(fprops[key])
                                 if comp == '=':
