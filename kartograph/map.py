@@ -279,7 +279,7 @@ class Map(object):
 
         #Choose whether to put sidelayer on side or below, depending
         
-        if self._projected_bounds.width <= self._projected_bounds.height *1.5:
+        if self._projected_bounds.width <= self._projected_bounds.height:
             # Add a little breathing room on the left
             print 'Adding on left'
             self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/6.-self._side_projected_bounds.width
