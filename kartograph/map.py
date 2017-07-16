@@ -251,7 +251,7 @@ class Map(object):
                 # bounding bbox 
                 temp_bbox=geom_to_bbox(feat.geometry, data["min-area"])
                 sidebbox.join(temp_bbox)
-                self.print_debug('sidebbox={0}'.format(sidebbox))
+                #self.print_debug('sidebbox={0}'.format(sidebbox))
         # Create a dummy feature to scale the side bounding geometry
 
         temp_feat=create_feature(self._side_bounding_geometry,{})
