@@ -246,12 +246,12 @@ class Map(object):
                     feat.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
                 else:
                     feat.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
-                if layer.id==layer.options['sidelayer']:
-                    # If this is the main layer for the sidelayer we want to use it to
-                    # make the bounding box
-                    temp_bbox=geom_to_bbox(feat.geometry, data["min-area"])
-                    sidebbox.join(temp_bbox)
-                    self.print_debug('sidebbox={0}'.format(sidebbox))
+
+                # Everything in the sidelayer should be used to create the
+                # bounding bbox 
+                temp_bbox=geom_to_bbox(feat.geometry, data["min-area"])
+                sidebbox.join(temp_bbox)
+                self.print_debug('sidebbox={0}'.format(sidebbox))
         # Create a dummy feature to scale the side bounding geometry
 
         temp_feat=create_feature(self._side_bounding_geometry,{})
@@ -279,15 +279,15 @@ class Map(object):
 
         #Choose whether to put sidelayer on side or below, depending
         
-        if self._projected_bounds.width <= self._projected_bounds.height:
+        if self._projected_bounds.width <= self._projected_bounds.height *1.5:
             # Add a little breathing room on the left
-            #print 'Adding on left'
+            print 'Adding on left'
             self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/6.-self._side_projected_bounds.width
             self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top+self._projected_bounds.height/2-self._side_projected_bounds.height/2.
         else:
-            #print 'Adding on left'
-            self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/6.-self._side_projected_bounds.width
-            self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top+self._projected_bounds.height/2-self._side_projected_bounds.height/2.
+            print 'Adding on top'
+            self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left+self._projected_bounds.width/2.-self._side_projected_bounds.width/2.
+            self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top-self._projected_bounds.height/6.-self._side_projected_bounds.height
         #print 'self._next_side_offset={0}'.format(self._next_side_offset)
          # transform to offset the sidelayers
         new_proj_bbox=BBox()
