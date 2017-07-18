@@ -1,6 +1,6 @@
 #countylayer {
   stroke-width: 2px;
-  /*fill: #fefefe;*/
+  fill: #fefefe;
   stroke-linecap: butt;
   stroke-opacity: 1;
 }
@@ -10,7 +10,7 @@
 }
 #placelayer[LSAD=57]
 {
- fill: #ffffff;
+ fill: #fefefe;
 }
 
 #countysublayer
