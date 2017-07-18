@@ -92,11 +92,14 @@ class Kartograph(object):
         alt_outfile=countyalt_file+'_'+curr_state_name+'_Incorporated_and_Unincorporated_areas_'+curr_place_name+'_Highlighted_'+curr_state_fips+curr_place+'.svg'
         #print('alt_outfile={0}'.format(alt_outfile))
         if outfile is None:
+           
+ 
             outfile=re.sub('/','-',alt_outfile) # use the alt outfile if nothing else specified
+            outfile=outfile.encode('utf-8','replace')
             print 'outfile was None, now={0}'.format(outfile)
         else:
             print('outfile={0}'.format(outfile))
-            
+      
         stylesheet+=_map.add_styling();
         # Check if the format is handled by a renderer.
         format = format.lower()

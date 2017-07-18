@@ -241,7 +241,7 @@ class Map(object):
             #    self.print_debug('(A) scaling feature {0}, {1}'.format(feat, feat.props['NAME']))
 
             for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
-                self.print_debug('scaling feature {0}'.format(feat.props['NAME']))
+                self.print_debug('scaling feature {0}'.format(feat.props['NAME'].encode('utf-8','replace')))
                 if opts['bounds']['scale-sidelayer']=='auto':
                     feat.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
                 else:
