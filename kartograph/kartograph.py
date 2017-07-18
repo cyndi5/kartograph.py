@@ -73,9 +73,14 @@ class Kartograph(object):
         _map = Map(opts, self.layerCache, format=format,boundCache=self.boundCache, cache_bounds=cache_bounds, viewCache=self.viewCache, cache_view=cache_view, verbose=verbose)
         for layer in _map.layers:
             if layer.id=='countylayer':
-                # should be just one feature, not anymore but whatever
-                feature = layer.features[0]
-                countyalt_file=countyalt_file+feature.props['NAME']+'_'+self.lsad_map[feature.props['LSAD']]
+                county_and_flag=False
+                county_list=[(feat.props['NAME'],self.lsad_map[feature.props['LSAD']]) for feat in layer.features]
+                county_list=sorted(county_list)
+                for (county, county_type) in county_list:
+                    if county_and_flag:
+                        countyalt_file+='_and_'
+                    countyalt_file=countyalt_file+county+'_'+county_type
+                    county_and_flag=True
                 #print 'Feature={0}'.format(feature.props)
                 curr_state_name=self.state_fips[feature.props['STATEFP']]
                 curr_state_fips=feature.props['STATEFP']
