@@ -28,7 +28,7 @@ class Kartograph(object):
         self.layerCache = {}
         self.boundCache = {}
         self.viewCache = {}
-        self.lsad_map={ '03': 'City and Borough','04': 'Borough', '05': 'Census Area','06': 'County','07': 'District', '10': 'Island', '12': 'Municipality', '13': 'Municipio', '15': 'Parish'}
+        self.lsad_map={ '01': 'Fake Feature', '03': 'City and Borough','04': 'Borough', '05': 'Census Area','06': 'County','07': 'District', '10': 'Island', '12': 'Municipality', '13': 'Municipio', '15': 'Parish'}
         self.state_fips={'01': 'Alabama', '02': 'Alaska', '04': 'Arizona',
         '05': 'Arkansas', '06': 'California', '08': 'Colorado', '09': 'Connecticut',
         '10': 'Delaware', '11': 'District of Columbia', '12': 'Florida',

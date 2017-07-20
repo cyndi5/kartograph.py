@@ -5,6 +5,7 @@ from geometry.utils import join_features
 from geometry import create_feature
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
+from geometry.utils import get_offset_coords
 from geometry.feature import Feature, MultiPolygonFeature
 from math import sqrt
 from options import parse_curr_layer
@@ -33,7 +34,7 @@ class Map(object):
         me.verbose = verbose
         me.options = options
         me.format = format
-        me._position_factor=1.5
+  
         # We will cache the projections to the view as they will be the same whenever state and county are the same 
         me.viewCache = viewCache
         me.cache_view=cache_view
@@ -43,6 +44,7 @@ class Map(object):
         # List and dictionary references to the map layers.
         me.layers = []
         me.layersById = {}
+        me._position_factor = 1.5
         
         # We will cache the bounding geometry since we need it twice, eventually.
         if 'bounding_geometry' in boundCache and cache_bounds and boundCache['bounding_geometry'] is not None:
@@ -55,7 +57,7 @@ class Map(object):
         me._side_bounding_geometry = None
         me._projected_bounds = None
         me._side_offset = {'x':0,'y':0}
-        me._next_side_offset={'x':0,'y':0}
+        me._n_side_off={'x':0,'y':0}
         me._init_offset = None # the initial offset as a result of scaling
         # The **source encoding** will be used as first guess when Kartograph tries to decode
         # the meta data of shapefiles etc. We use Unicode as default source encoding.
@@ -225,23 +227,28 @@ class Map(object):
     def _scale_offset_side_features(self):
         opts=self.options
         self._side_offset=self._get_side_offset()
-        sidebbox=BBox() 
+        sidebbox=BBox()
         mainbbox=BBox()
+        main_geom = None
+        side_geom = None
         data = opts['bounds']['data']
         if data['layer'] in self.layersById:
             layer=self.layersById[data['layer']]
             for feature in layer.features:
-                mainbbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
+                mainbbox.join(geom_to_bbox(feature.geometry,data['min-area']))
+                if main_geom is not None:
+                    main_geom=main_geom.union(feature.geometry)
+                else:
+                    main_geom = deepcopy(feature.geometry)
 
-                
         # Scale the features in the layers associated with the sidelayer
         for layer in [layer for layer in self.layers if "sidelayer" in layer.options]:
-            self.print_debug('scaling {0}'.format(layer.id))
+            #self.print_debug('scaling {0}'.format(layer.id))
            # for feat in layer.features:
             #    self.print_debug('(A) scaling feature {0}, {1}'.format(feat, feat.props['NAME']))
 
             for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
-                self.print_debug('scaling feature {0}'.format(feat.props['NAME'].encode('utf-8','replace')))
+                #self.print_debug('scaling feature {0}'.format(feat.props['NAME'].encode('utf-8','replace')))
                 if opts['bounds']['scale-sidelayer']=='auto':
                     feat.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
                 else:
@@ -251,8 +258,13 @@ class Map(object):
                 # bounding bbox 
                 temp_bbox=geom_to_bbox(feat.geometry, data["min-area"])
                 sidebbox.join(temp_bbox)
+                if side_geom is not None:
+                    side_geom=side_geom.union(feat.geometry)
+                else:
+                    side_geom = deepcopy(feat.geometry)
                 #self.print_debug('sidebbox={0}'.format(sidebbox))
         # Create a dummy feature to scale the side bounding geometry
+
 
         temp_feat=create_feature(self._side_bounding_geometry,{})
         temp_feat.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
@@ -270,26 +282,23 @@ class Map(object):
         temp_layer = self.layersById[id]
         #print 'mainbbox={0}'.format(mainbbox)
         self._side_projected_bounds=sidebbox
-        self._projected_bounds=mainbbox
+        self._projected_bounds=mainbboxtemp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': '00', 'PLACEFP': '00000'})
         self.print_debug('self._side_projected_bounds={0}'.format(self._side_projected_bounds))
         #print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
       
-
         #print 'Pre-second offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
 
-        #Choose whether to put sidelayer on side or below, depending
+        #Choose where to position and main side relatively
+        self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords(self._projected_bounds, self._side_projected_bounds, self._position_factor)
 
-        left_good = self._side_projected_bounds.width + self._projected_bounds.width  <= max(self._projected_bounds.height,self._side_projected_bounds.height)*self._position_factor
-        if left_good:
-            # Add a little breathing room on the left
-            print 'Adding on left'
-            self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left-self._projected_bounds.width/6.-self._side_projected_bounds.width
-            self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top+self._projected_bounds.height/2-self._side_projected_bounds.height/2.
-        else:
-            print 'Adding on top'
-            self._next_side_offset['x'] = -self._side_projected_bounds.left+self._projected_bounds.left+self._projected_bounds.width/2.-self._side_projected_bounds.width/2.
-            self._next_side_offset['y'] = -self._side_projected_bounds.top+self._projected_bounds.top-self._projected_bounds.height/6.-self._side_projected_bounds.height
-        #print 'self._next_side_offset={0}'.format(self._next_side_offset)
+        
+        #XStemp_STATEFP='06'
+        #layer=self.layersById[data['layer']]
+        #if len(layer.features)>0:
+        #    temp_STATEFP=layer.features[0].props['STATEFP']
+        #temp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+        #layer.features.append(temp_feat)
+        #print 'self._n_side_off={0}'.format(self._n_side_off)
          # transform to offset the sidelayers
         new_proj_bbox=BBox()
         for layer in self.layers:
@@ -297,9 +306,13 @@ class Map(object):
                 for feature in layer.features:
                     if isinstance(feature,MultiPolygonFeature):
                         #print 'offsetting feature {0}'.format(feature.props['NAME'])
-                        feature.offset_feature(self._next_side_offset)
+                        feature.offset_feature(self._n_side_off)
                     if layer.id==layer.options['sidelayer']:
-                        new_proj_bbox.join(geom_to_bbox(feature.geometry, self.options['bounds']['data']["min-area"]))
+                        #if new_proj_bbox is not None:
+                        #    new_proj_bbox.union(feature.geometry)
+                        #else:
+                        #    new_proj_bbox=deepcopy(feature.geometry)
+                        new_proj_bbox.join(geom_to_bbox(feature.geometry,data['min-area']))  
         self._side_projected_bounds=new_proj_bbox
   
     def _init_projection(self):
@@ -737,14 +750,16 @@ class Map(object):
         """
         ### Initialize the view
         """
+        opts=self.options
         # Compute the bounding box of the bounding polygons.
         bbox = deepcopy(self._projected_bounds)
         bbox.join(deepcopy(self._side_projected_bounds))      #geom_to_bbox(self.projec)
-        self.src_bbox = bbox
+#        temp_bounds = deepcopy(self._projected_bounds).union(self._side_projected_bounds)
+        self.src_bbox = bbox#geom_to_bbox(temp_bounds,opts["bounds"]["data"]["min-area"])
         #print 'bbox.width={0}, bbox.height={1}, prod={2}'.format(bbox.width,bbox.height,bbox.width*bbox.height)
         #print 'self._projected_bounds={0}, self._side_projected_bounds={1}, bbox={2}'.format(self._projected_bounds,self._side_projected_bounds, bbox)
 
-        exp = self.options["export"]
+        exp = opts["export"]
         w = exp["width"]
         h = exp["height"]
         padding = exp["padding"]
@@ -752,14 +767,14 @@ class Map(object):
 
         # Compute ratio from width and height.
         if ratio == "auto":
-            ratio = bbox.width / float(bbox.height)
+            ratio = self.src_bbox.width / float(self.src_bbox.height)
 
         # Compute width or heights from ratio.
         if h == "auto":
             h = w / ratio
         elif w == "auto":
             w = h * ratio
-        return View(bbox, w, h, padding)
+        return View(self.src_bbox, w, h, padding)
 
     def _init_view_poly(self):
         """

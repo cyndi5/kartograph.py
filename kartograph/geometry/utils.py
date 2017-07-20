@@ -97,3 +97,38 @@ def join_features(features, props, buf=False):
             rings += geoms
         joined.append(MultiLineFeature(linemerge(rings), props))
     return joined
+
+# Deal with the offset coords in old way that doesn't look good for some places
+def get_offset_coords(mainbbox, sidebbox, position_factor):
+        m_bounds = mainbbox
+        s_bounds = sidebbox
+        left_good = s_bounds.width + m_bounds.width  <= max(m_bounds.height,s_bounds.height)*position_factor
+        next_side_offset={'x': 0, 'y': 0}
+        if left_good:
+            # Add a little breathing room on the left
+            print 'Adding on left'
+            next_side_offset['x'] = -s_bounds.left+m_bounds.left-m_bounds.width/6.-s_bounds.width
+            next_side_offset['y'] = -s_bounds.top+m_bounds.top+m_bounds.height/2-s_bounds.height/2.
+        else:
+            print 'Adding on top'
+            next_side_offset['x'] = -s_bounds.left+m_bounds.left+m_bounds.width/2.-s_bounds.width/2.
+            next_side_offset['y'] = -s_bounds.top+m_bounds.top-m_bounds.height/6.-s_bounds.height
+
+        return next_side_offset['x'], next_side_offset['y']
+
+# Deal with offset coords in a more sophisticated way
+def get_offset_coords_complex(main_geom, side_geom, position_factor):
+ 
+        m_hull = main_geom#geom_to_bbox(main_geom,min_area=0)
+        s_bounds = side_geom#geom_to_bbox(side_geom,min_area=0)
+        left_good = s_bounds.width + m_bounds.width  <= max(m_bounds.height,s_bounds.height)*position_factor
+        next_side_offset={'x': 0, 'y': 0}
+        if left_good:
+            # Add a little breathing room on the left
+            print 'Adding on left'
+            next_side_offset['x'] = -s_bounds.left+m_bounds.left-m_bounds.width/6.-s_bounds.width
+            next_side_offset['y'] = -s_bounds.top+m_bounds.top+m_bounds.height/2-s_bounds.height/2.
+        else:
+            print 'Adding on top'
+            next_side_offset['x'] = -s_bounds.left+m_bounds.left+m_bounds.width/2.-s_bounds.width/2.
+            next_side_offset['y'] = -s_bounds.top+m_bounds.top-m_bounds.height/6.-s_bounds.height
