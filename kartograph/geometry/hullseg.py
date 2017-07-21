@@ -30,7 +30,10 @@ class hullseg(object):
             self.intercept = self.pointA.y
             self.above = self.pointA.y > self.otherPoint.y
         else:
-            self.slope = pB.y-pA.y   # Not the slope in the way we expect 
+            self.slope = (pB.y-pA.y)/(pB.x-pA.x)   # Not the slope in the way we expect
+            self.intercept = pA.y-self.slope*pA.x
+            
+            #TODO: self.above = 
         
         
         
