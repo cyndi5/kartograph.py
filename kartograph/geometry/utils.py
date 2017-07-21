@@ -2,6 +2,7 @@
 geometry utils
 """
 
+from hullseg import hullseg
 
 def is_clockwise(pts):
     """ returns true if a given linear ring is in clockwise order """
@@ -117,18 +118,12 @@ def get_offset_coords(mainbbox, sidebbox, position_factor):
         return next_side_offset['x'], next_side_offset['y']
 
 # Deal with offset coords in a more sophisticated way
-def get_offset_coords_complex(main_geom, side_geom, position_factor):
+def get_offset_coords_complex(main_geom, side_geom, position_factor, dist_param):
  
         m_hull = main_geom#geom_to_bbox(main_geom,min_area=0)
-        s_bounds = side_geom#geom_to_bbox(side_geom,min_area=0)
-        left_good = s_bounds.width + m_bounds.width  <= max(m_bounds.height,s_bounds.height)*position_factor
-        next_side_offset={'x': 0, 'y': 0}
-        if left_good:
-            # Add a little breathing room on the left
-            print 'Adding on left'
-            next_side_offset['x'] = -s_bounds.left+m_bounds.left-m_bounds.width/6.-s_bounds.width
-            next_side_offset['y'] = -s_bounds.top+m_bounds.top+m_bounds.height/2-s_bounds.height/2.
-        else:
-            print 'Adding on top'
-            next_side_offset['x'] = -s_bounds.left+m_bounds.left+m_bounds.width/2.-s_bounds.width/2.
-            next_side_offset['y'] = -s_bounds.top+m_bounds.top-m_bounds.height/6.-s_bounds.height
+        s_hull = side_geom#geom_to_bbox(side_geom,min_area=0)
+
+        m_coords = main_geom.exterior.coords
+        hull_list=[]
+        for coord in m_coords:
+            

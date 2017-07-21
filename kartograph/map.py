@@ -282,8 +282,8 @@ class Map(object):
         temp_layer = self.layersById[id]
         #print 'mainbbox={0}'.format(mainbbox)
         self._side_projected_bounds=sidebbox
-        self._projected_bounds=mainbboxtemp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': '00', 'PLACEFP': '00000'})
-        self.print_debug('self._side_projected_bounds={0}'.format(self._side_projected_bounds))
+        self._projected_bounds=mainbbox
+#        self.print_debug('self._side_projected_bounds={0}'.format(self._side_projected_bounds))
         #print 'Pre-first offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
       
         #print 'Pre-second offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
@@ -293,11 +293,11 @@ class Map(object):
 
         
         #XStemp_STATEFP='06'
-        #layer=self.layersById[data['layer']]
-        #if len(layer.features)>0:
-        #    temp_STATEFP=layer.features[0].props['STATEFP']
-        #temp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-        #layer.features.append(temp_feat)
+        layer=self.layersById[data['layer']]
+        if len(layer.features)>0:
+            temp_STATEFP=layer.features[0].props['STATEFP']
+        temp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+        layer.features.append(temp_feat)
         #print 'self._n_side_off={0}'.format(self._n_side_off)
          # transform to offset the sidelayers
         new_proj_bbox=BBox()
