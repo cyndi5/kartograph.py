@@ -46,10 +46,10 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
    {
         "padding": 1.0,
         "padding-dict": {
-            "left": 0.05,
-            "right": 0.05,
-            "top": 0.05,
-            "bottom": 0.05
+            "left": 0.00,
+            "right": 0.00,
+            "top": 0.00,
+            "bottom": 0.00
         },
         "data": {
             "layer": "statelayer",
@@ -63,7 +63,7 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
      {
        "width": 500,
        "height": 500,
-       "padding": 15
+       "padding": 10
       }
     }
 

@@ -40,7 +40,10 @@ class BBox(object):
         self.bottom = self.ymax
         self.width = self.xmax - self.xmin
         self.height = self.ymax - self.ymin
-
+        
+    # return a new box offset by x_offset, y_offset
+    def get_offset_box(self,x_offset, y_offset):
+        return BBox(self.width, self.height, self.left+x_offset, self.top+y_offset)
     def intersects(self, bbox):
         """ returns true if two bounding boxes overlap """
         return bbox.left < self.right and bbox.right > self.left and bbox.top < self.bottom and bbox.bottom > self.top
@@ -103,6 +106,9 @@ class BBox(object):
         self.width = self.xmax - self.xmin
         self.height = self.ymax - self.ymin       
 
+    def area(self):
+        return self.width*self.height
+        
     def __getitem__(self, k):
         if k == 0:
             return self.xmin

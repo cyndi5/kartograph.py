@@ -32,12 +32,32 @@ do
     esac
 done
 
-url=http://www2.census.gov/geo/tiger/GENZ${yarg}/shp/cb_${yarg}_${sarg}_place_500k.zip
-echo ${url}
-wget ${url}
 
-unzip cb_${yarg}_${sarg}_place_500k.zip -d cb_${yarg}_${sarg}_place_500k
-wget https://www2.census.gov/geo/docs/maps-data/data/gazetteer/${yarg}_Gazetteer/${yarg}_gaz_place_${sarg}.txt
+if [ -d "cb_${yarg}_us_county_500k" ]
+then
+    echo "cb_${yarg}_us_county_500k exists"
+else
+    url2=http://www2.census.gov/geo/tiger/GENZ${yarg}/shp/cb_${yarg}_us_county_500k.zip
+    wget ${url2}
+    unzip cb_${yarg}_us_county_500k.zip -d cb_${yarg}_us_county_500k
+fi
+
+if [ -d "cb_${yarg}_${sarg}_place_500k" ]
+then
+    echo "cb_${yarg}_${sarg}_place_500k exists"
+else
+    url=http://www2.census.gov/geo/tiger/GENZ${yarg}/shp/cb_${yarg}_${sarg}_place_500k.zip
+    echo ${url}
+    wget ${url}
+    unzip cb_${yarg}_${sarg}_place_500k.zip -d cb_${yarg}_${sarg}_place_500k
+fi
+
+if [ -e "${yarg}_gaz_place_${sarg}.txt" ]
+then
+    echo "${yarg}_gas_place_${sarg}.txt exists"
+else
+    wget https://www2.census.gov/geo/docs/maps-data/data/gazetteer/${yarg}_Gazetteer/${yarg}_gaz_place_${sarg}.txt
+fi
 
 echo ${sarg} ${yarg}
 echo python generatefromgazetteer.py -s ${sarg} -y ${yarg} $sflags

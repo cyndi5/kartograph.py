@@ -12,7 +12,6 @@ verbose = False
 # above is whether or not the SEGMENT is above the hull
 
 class hullseg(object):
-
     #pointA is the first point, pointB the second point, otherPoint is used to compute which way is out
     # distParam is none for the side hull 
     def __init__(self, point1, point2, otherPoint, distParam=None):
@@ -27,17 +26,21 @@ class hullseg(object):
         self.outPoint = None
         pA = self.pointA
         pB = self.pointB
+
+        self.length = sqrt((pB.x-pA.x)**2+(pB.y-pA.y)**2)
         pO = self.otherPoint
-        if self.pointA.y == self.pointB.y:
+        if self.pointA.x == self.pointB.x:
             self.slope = float('nan')
-            self.intercept = self.pointA.y
-            self.above = self.pointA.y > self.otherPoint.y
+            self.intercept = self.pointA.x
+            self.above = self.pointA.x >= self.otherPoint.x
             self.midPoint = Point((pA.x+pB.x)/2,(pA.y+pB.y)/2)
             if distParam is not None:
                 if self.above:
                     self.outPoint = Point(self.midPoint.x+distParam,self.midPoint.y)
                 else:
                     self.outPoint = Point(self.midPoint.x-distParam,self.midPoint.y)
+            else:
+                print('Error: distparam is None')
         else:
             self.slope = (pB.y-pA.y)/(pB.x-pA.x)   # Not the slope in the way we expect
             self.intercept = pA.y-self.slope*pA.x
@@ -63,7 +66,7 @@ class hullseg(object):
                 elif not self.above and inv_slope >= 0:
                     self.outPoint = Point(self.midPoint.x+distParam*x_factor,
                                               self.midPoint.y+distParam*y_factor)
-                else
+                else:
                     self.outPoint = Point(self.midPoint.x-distParam*x_factor,
                                               self.midPoint.y+distParam*y_factor)
 
@@ -71,17 +74,50 @@ class hullseg(object):
                                               
         
         
-
+    
     def __repr__(self):
         return 'hullseg(' + self.geometry.__class__.__name__ + ')'
 
     def __str__(self):
-        return 'hullseg('+self.pointA+','+self.pointB+')'
+        return 'hullseg( points=({0},{1}), above={2}, slope={3}, midPoint={4}, outPoint={5},   length={6})'.format(self.pointA, self.pointB, self.above, self.slope, self.midPoint, self.outPoint,self.length)
 
+    # check if point is above (or on) line (left is below) 
+    def is_above(self, pt, slope, intercept):
+        if slope == float('nan'):
+            return pt.x >= intercept
+        else:
+            return pt.x*slope+intercept >= pt.y
+        
+    # check if point is below (or on) line (left is below) 
+    def is_below(self, pt, slope, intercept):
+        if slope == float('nan'):
+            return pt.x <= intercept
+        else:
+            return pt.x*slope+intercept <= pt.y
+    
+            
+        
+    # Check to see if the point is ``good" relative to this hull segment
     def check_point(self, s_point_pos, m_coords, s_coords):
-        s_point = s_coords[s_point_pos]
+        s_point = Point(s_coords[s_point_pos][0],s_coords[s_point_pos][1])
         curr_slope=self.slope
         if curr_slope == float('nan'):
-            curr_intercept = s_point.y
+            curr_intercept = s_point.x
         else:
             curr_intercept = s_point.y-curr_slope*s_point.x
+
+        # Check where the points next to it are
+        if s_point_pos == 0:
+            s_before = len(s_coords)-2
+        else:
+            s_before=s_point_pos-1
+        s_after=(s_point_pos+1+len(s_coords)) % len(s_coords)
+        s_point_before = Point(s_coords[s_before][0],s_coords[s_before][1])
+        s_point_after = Point(s_coords[s_after][0],s_coords[s_after][1])
+        if self.above:
+            # Want s_point_before and s_point_after to be above line too
+            return self.is_above(s_point_before, curr_slope, curr_intercept) and self.is_above(s_point_after, curr_slope, curr_intercept)
+        else:
+            return self.is_below(s_point_before, curr_slope, curr_intercept) and self.is_below(s_point_after, curr_slope, curr_intercept)
+    
+            

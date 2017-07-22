@@ -5,7 +5,7 @@ from geometry.utils import join_features
 from geometry import create_feature
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
-from geometry.utils import get_offset_coords
+from geometry.utils import get_offset_coords, get_offset_coords_complex
 from geometry.feature import Feature, MultiPolygonFeature
 from math import sqrt
 from options import parse_curr_layer
@@ -289,15 +289,22 @@ class Map(object):
         #print 'Pre-second offsetting: self._side_projected_bounds={0}'.format(self._side_projected_bounds)
 
         #Choose where to position and main side relatively
-        self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords(self._projected_bounds, self._side_projected_bounds, self._position_factor)
-
+        self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords_complex(self._projected_bounds, self._side_projected_bounds, main_geom.convex_hull, side_geom.convex_hull, self._position_factor)
         
-        #XStemp_STATEFP='06'
+       # self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords(self._projected_bounds, self._side_projected_bounds, self._position_factor)
+        
+        temp_STATEFP='06'
         layer=self.layersById[data['layer']]
         if len(layer.features)>0:
             temp_STATEFP=layer.features[0].props['STATEFP']
-        temp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-        layer.features.append(temp_feat)
+            temp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+            layer.features.append(temp_feat)
+
+        layer=self.layersById[data['sidelayer']]
+        if len(layer.features)>0:
+            temp_STATEFP=layer.features[0].props['STATEFP']
+            temp_feat=create_feature(side_geom.convex_hull,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+            layer.features.append(temp_feat)
         #print 'self._n_side_off={0}'.format(self._n_side_off)
          # transform to offset the sidelayers
         new_proj_bbox=BBox()

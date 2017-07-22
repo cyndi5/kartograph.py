@@ -3,7 +3,8 @@ geometry utils
 """
 
 from hullseg import hullseg
-
+from shapely.geometry import Point
+from copy import deepcopy
 def is_clockwise(pts):
     """ returns true if a given linear ring is in clockwise order """
     s = 0
@@ -126,19 +127,78 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
     m_coords = m_hull.exterior.coords
     s_coords = s_hull.exterior.coords
 
-    best_point=None
+    best_x=0
+    best_y=0
     min_area=float('inf')
     hull_list=[]
-    for i in range(len(m_coords)):
-        pA=m_coords[i % len(m_coords)]
-        pB=m_coords[(i+1) % len(m_coords)]
-        pO=m_coords[(i+2) % len(m_coords)]
-        hull_list.append(hullseg(pA,pB,pO,dist_param))
+    side_hull_list=[]
+    for i in range(len(m_coords)-1):
+        pA=Point(m_coords[i % len(m_coords)][0], m_coords[i % len(m_coords)][1])
+        if i<len(m_coords)-2:
+            b_pt_val=i+1
+            o_pt_val=i+2
+        else:
+            b_pt_val=i+1
+            o_pt_val=i+3
+        pB=Point(m_coords[(b_pt_val) % len(m_coords)][0], m_coords[(b_pt_val) % len(m_coords)][1])
+        pO=Point(m_coords[(o_pt_val) % len(m_coords)][0], m_coords[(o_pt_val) % len(m_coords)][1])
+        #print('{0}, {1}, {2}'.format(pA,pB,pO))
+        temp_hull_seg=hullseg(pA,pB,pO,dist_param)
+        print('current segment-{0}'.format(temp_hull_seg))
+        hull_list.append(temp_hull_seg)
 
-    for seg, s_point_pos in hull_list, range(len(s_coords)):
-        # check_point should tell if line through s_point
-        # with slope of seg is internal to s_hull or not 
-        if seg.check_point(s_point_pos, m_coords, s_coords):
+    for i in range(len(s_coords)-1):
+        pA=Point(s_coords[i % len(s_coords)][0], s_coords[i % len(m_coords)][1])
+        if i<len(s_coords)-2:
+            b_pt_val=i+1
+            o_pt_val=i+2
+        else:
+            b_pt_val=i+1
+            o_pt_val=i+3
+        pB=Point(s_coords[(b_pt_val) % len(s_coords)][0], s_coords[(b_pt_val) % len(s_coords)][1])
+        pO=Point(s_coords[(o_pt_val) % len(s_coords)][0], s_coords[(o_pt_val) % len(s_coords)][1])
+        #print('{0}, {1}, {2}'.format(pA,pB,pO))
+        temp_hull_seg=hullseg(pA,pB,pO,dist_param)
+        print('current segment-{0}'.format(temp_hull_seg))
+        side_hull_list.append(temp_hull_seg)
+
+    for seg in hull_list:
+        for side_seg in side_hull_list:
+            # check_point should tell if line through s_point
+            # with slope of seg is internal to s_hull or not 
+            if seg.check_point(side_seg.pointA, m_coords, s_coords):
+                # May went to do something with segments on side too
+                # Fix later to do the annoying checking to see where it should lie
+                x_offset = (-s_coords[s_point_pos][0]+seg.outPoint.x)
+                y_offset = (-s_coords[s_point_pos][1]+seg.outPoint.y)
+                temp_sbox = sidebbox.get_offset_box(x_offset, y_offset)
+                temp_join_bbox = deepcopy(mainbbox)
+                #print('temp_join_bbox={0}').format(temp_join_bbox)
+                temp_join_bbox.join(temp_sbox)
+                #print('Post join, temp_join_bbox={0}').format(temp_join_bbox)
+            #    print('temp_join_bbox.area={0},min_area={1}'.format(temp_join_bbox.area(),min_area))
+                if temp_join_bbox.area() < min_area:
+                    min_area=temp_join_bbox.area()
+                    best_x = x_offset
+                    best_y = y_offset
+                    print('{0}, {1},min_area={2}'.format(seg, s_coords[s_point_pos],min_area))
+            elif seg.check_point(side_seg.pointB, m_coords, s_coords):
+                # May went to do something with segments on side too
+                x_offset = (-s_coords[s_point_pos][0]+seg.outPoint.x)
+                y_offset = (-s_coords[s_point_pos][1]+seg.outPoint.y)
+                temp_sbox = sidebbox.get_offset_box(x_offset, y_offset)
+                temp_join_bbox = deepcopy(mainbbox)
+                #print('temp_join_bbox={0}').format(temp_join_bbox)
+                temp_join_bbox.join(temp_sbox)
+                #print('Post join, temp_join_bbox={0}').format(temp_join_bbox)
+            #    print('temp_join_bbox.area={0},min_area={1}'.format(temp_join_bbox.area(),min_area))
+                if temp_join_bbox.area() < min_area:
+                    min_area=temp_join_bbox.area()
+                    best_x = x_offset
+                    best_y = y_offset
+                    print('{0}, {1},min_area={2}'.format(seg, s_coords[s_point_pos],min_area))
+    return x_offset, y_offset
+            
         
     
 
