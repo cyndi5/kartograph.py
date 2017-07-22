@@ -108,22 +108,42 @@ def get_offset_coords(mainbbox, sidebbox, position_factor):
         if left_good:
             # Add a little breathing room on the left
             print 'Adding on left'
-            next_side_offset['x'] = -s_bounds.left+m_bounds.left-m_bounds.width/6.-s_bounds.width
+            next_side_offset['x'] = -s_bounds.left+m_bounds.left-m_bounds.width/10.-s_bounds.width
             next_side_offset['y'] = -s_bounds.top+m_bounds.top+m_bounds.height/2-s_bounds.height/2.
         else:
             print 'Adding on top'
             next_side_offset['x'] = -s_bounds.left+m_bounds.left+m_bounds.width/2.-s_bounds.width/2.
-            next_side_offset['y'] = -s_bounds.top+m_bounds.top-m_bounds.height/6.-s_bounds.height
+            next_side_offset['y'] = -s_bounds.top+m_bounds.top-m_bounds.height/10.-s_bounds.height
 
         return next_side_offset['x'], next_side_offset['y']
 
 # Deal with offset coords in a more sophisticated way
-def get_offset_coords_complex(main_geom, side_geom, position_factor, dist_param):
- 
-        m_hull = main_geom#geom_to_bbox(main_geom,min_area=0)
-        s_hull = side_geom#geom_to_bbox(side_geom,min_area=0)
+def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position_factor):
+    m_hull = main_geom#geom_to_bbox(main_geom,min_area=0)
+    s_hull = side_geom#geom_to_bbox(side_geom,min_area=0)
+    dist_param = min(mainbbox.width, mainbbox.height)/10.
 
-        m_coords = main_geom.exterior.coords
-        hull_list=[]
-        for coord in m_coords:
+    m_coords = m_hull.exterior.coords
+    s_coords = s_hull.exterior.coords
+
+    best_point=None
+    min_area=float('inf')
+    hull_list=[]
+    for i in range(len(m_coords)):
+        pA=m_coords[i % len(m_coords)]
+        pB=m_coords[(i+1) % len(m_coords)]
+        pO=m_coords[(i+2) % len(m_coords)]
+        hull_list.append(hullseg(pA,pB,pO,dist_param))
+
+    for seg, s_point_pos in hull_list, range(len(s_coords)):
+        # check_point should tell if line through s_point
+        # with slope of seg is internal to s_hull or not 
+        if seg.check_point(s_point_pos, m_coords, s_coords):
+        
+    
+
+    
+        
+
+        
             

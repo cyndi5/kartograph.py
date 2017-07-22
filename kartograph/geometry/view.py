@@ -36,7 +36,7 @@ class View(object):
         py = pt[1]
         x = (px - bbox.left) * s + (w - bbox.width * s) * .5
         y = (py - bbox.top) * s + (h - bbox.height * s) * .5
-        return ((x, y), Point(x, y))[isinstance(pt, Point)]
+        return (x,y)#((x, y), Point(x, y))[isinstance(pt, Point)]
 
     def project_inverse(self, pt):
         bbox = self.bbox

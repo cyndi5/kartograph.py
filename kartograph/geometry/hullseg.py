@@ -29,7 +29,7 @@ class hullseg(object):
         pB = self.pointB
         pO = self.otherPoint
         if self.pointA.y == self.pointB.y:
-            self.slope = NaN
+            self.slope = float('nan')
             self.intercept = self.pointA.y
             self.above = self.pointA.y > self.otherPoint.y
             self.midPoint = Point((pA.x+pB.x)/2,(pA.y+pB.y)/2)
@@ -77,3 +77,11 @@ class hullseg(object):
 
     def __str__(self):
         return 'hullseg('+self.pointA+','+self.pointB+')'
+
+    def check_point(self, s_point_pos, m_coords, s_coords):
+        s_point = s_coords[s_point_pos]
+        curr_slope=self.slope
+        if curr_slope == float('nan'):
+            curr_intercept = s_point.y
+        else:
+            curr_intercept = s_point.y-curr_slope*s_point.x
