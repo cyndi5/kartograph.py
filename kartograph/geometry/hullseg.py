@@ -35,10 +35,12 @@ class hullseg(object):
             self.above = self.pointA.x >= self.otherPoint.x
             self.midPoint = Point((pA.x+pB.x)/2,(pA.y+pB.y)/2)
             if distParam is not None:
+                self.inv_slope = 0
                 if self.above:
                     self.outPoint = Point(self.midPoint.x+distParam,self.midPoint.y)
                 else:
                     self.outPoint = Point(self.midPoint.x-distParam,self.midPoint.y)
+                self.inv_intercept = self.outPoint.y
             else:
                 print('Error: distparam is None')
         else:
@@ -47,13 +49,15 @@ class hullseg(object):
             self.above = pO.y > pO.x*self.slope+self.intercept
             self.midPoint = Point((pA.x+pB.x)/2,(pA.y+pB.y)/2)
             if distParam is not None and self.slope == 0:
-            # Deal with 0 separately because 1/0 = not a number 
+                self.inv_slope = float('nan')
+                # Deal with 0 separately because 1/0 = not a number
                 if self.above:
                     self.outPoint = Point(self.midPoint.x,self.midPoint.y-distParam)
                 else:
                     self.outPoint = Point(self.midPoint.x,self.midPoint.y+distParam)
+                self.inv_intercept = self.outPoint.x
             elif distParam is not None:
-                inv_slope = -1./self.slope
+                self.inv_slope = inv_slope = -1./self.slope
                 x_factor = 1./abs(sqrt(inv_slope**2+1))
                 y_factor = abs(inv_slope)/abs(sqrt(inv_slope**2+1))
                 if self.above and inv_slope>=0:
@@ -69,6 +73,7 @@ class hullseg(object):
                 else:
                     self.outPoint = Point(self.midPoint.x-distParam*x_factor,
                                               self.midPoint.y+distParam*y_factor)
+                self.inv_intercept = self.outPoint.y - self.inv_slope * self.outPoint.x
 
 
                                               

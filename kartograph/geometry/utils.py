@@ -169,8 +169,8 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
             if seg.check_point(side_seg.pointA, m_coords, s_coords):
                 # May went to do something with segments on side too
                 # Fix later to do the annoying checking to see where it should lie
-                x_offset = (-s_coords[s_point_pos][0]+seg.outPoint.x)
-                y_offset = (-s_coords[s_point_pos][1]+seg.outPoint.y)
+
+                x_offset, y_offset = self.get_curr_offsets(seg, side_seg, True)
                 temp_sbox = sidebbox.get_offset_box(x_offset, y_offset)
                 temp_join_bbox = deepcopy(mainbbox)
                 #print('temp_join_bbox={0}').format(temp_join_bbox)
@@ -198,9 +198,16 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
                     best_y = y_offset
                     print('{0}, {1},min_area={2}'.format(seg, s_coords[s_point_pos],min_area))
     return x_offset, y_offset
+
+# get the desired offsets         
+def get_curr_offsets(self, seg, side_seg, is_a):
+    sideOutPoint = Point(0,0)
+    if side_seg.slope == float('nan'):
+        if seg.slope == float('nan'):
+            sideOutPoint = side_seg.midPoint
+        else:
             
-        
-    
+
 
     
         
