@@ -14,7 +14,8 @@ verbose = False
 class hullseg(object):
     #pointA is the first point, pointB the second point, otherPoint is used to compute which way is out
     # distParam is none for the side hull 
-    def __init__(self, point1, point2, otherPoint, distParam=None):
+    def __init__(self, point1, point2, otherPoint, distParam=None, point_pos = None):
+        self.point_pos = point_pos
         if point2.x<point1.x:
             self.pointA = point2
             self.pointB = point1

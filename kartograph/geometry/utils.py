@@ -143,7 +143,7 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
         pB=Point(m_coords[(b_pt_val) % len(m_coords)][0], m_coords[(b_pt_val) % len(m_coords)][1])
         pO=Point(m_coords[(o_pt_val) % len(m_coords)][0], m_coords[(o_pt_val) % len(m_coords)][1])
         #print('{0}, {1}, {2}'.format(pA,pB,pO))
-        temp_hull_seg=hullseg(pA,pB,pO,dist_param)
+        temp_hull_seg=hullseg(pA,pB,pO,distParam=dist_param)
         print('current segment-{0}'.format(temp_hull_seg))
         hull_list.append(temp_hull_seg)
 
@@ -158,55 +158,66 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
         pB=Point(s_coords[(b_pt_val) % len(s_coords)][0], s_coords[(b_pt_val) % len(s_coords)][1])
         pO=Point(s_coords[(o_pt_val) % len(s_coords)][0], s_coords[(o_pt_val) % len(s_coords)][1])
         #print('{0}, {1}, {2}'.format(pA,pB,pO))
-        temp_hull_seg=hullseg(pA,pB,pO,dist_param)
-        print('current segment-{0}'.format(temp_hull_seg))
+        temp_hull_seg=hullseg(pA,pB,pO,distParam=dist_param, point_pos=i)
+        print('  current segment-{0}'.format(temp_hull_seg))
         side_hull_list.append(temp_hull_seg)
 
     for seg in hull_list:
         for side_seg in side_hull_list:
             # check_point should tell if line through s_point
-            # with slope of seg is internal to s_hull or not 
-            if seg.check_point(side_seg.pointA, m_coords, s_coords):
+            # with slope of seg is internal to s_hull or not
+            is_a = seg.check_point(side_seg.point_pos, m_coords, s_coords)
+            is_b = seg.check_point(side_seg.point_pos+1, m_coords, s_coords)
+                
+            if is_a:# or is_b:
                 # May went to do something with segments on side too
                 # Fix later to do the annoying checking to see where it should lie
+                x_offset, y_offset = get_curr_offsets(seg, side_seg, is_a)
+                temp_sbox = sidebbox.get_offset_box(x_offset, y_offset)
+                temp_join_bbox = deepcopy(mainbbox)
+                #print('temp_join_bbox={0}').format(temp_join_bbox)
+                temp_join_bbox.join(temp_sbox)
+                #print('Post join, temp_join_bbox={0}').format(temp_join_bbox)
+            #    print('temp_join_bbox.area={0},min_area={1}'.format(temp_join_bbox.area(),min_area))
+                if temp_join_bbox.area() < min_area:
+                    min_area=temp_join_bbox.area()
+                    best_x = x_offset
+                    best_y = y_offset
+                    print('{0}, min_area={1}'.format(seg, min_area))
 
-                x_offset, y_offset = self.get_curr_offsets(seg, side_seg, True)
-                temp_sbox = sidebbox.get_offset_box(x_offset, y_offset)
-                temp_join_bbox = deepcopy(mainbbox)
-                #print('temp_join_bbox={0}').format(temp_join_bbox)
-                temp_join_bbox.join(temp_sbox)
-                #print('Post join, temp_join_bbox={0}').format(temp_join_bbox)
-            #    print('temp_join_bbox.area={0},min_area={1}'.format(temp_join_bbox.area(),min_area))
-                if temp_join_bbox.area() < min_area:
-                    min_area=temp_join_bbox.area()
-                    best_x = x_offset
-                    best_y = y_offset
-                    print('{0}, {1},min_area={2}'.format(seg, s_coords[s_point_pos],min_area))
-            elif seg.check_point(side_seg.pointB, m_coords, s_coords):
-                # May went to do something with segments on side too
-                x_offset = (-s_coords[s_point_pos][0]+seg.outPoint.x)
-                y_offset = (-s_coords[s_point_pos][1]+seg.outPoint.y)
-                temp_sbox = sidebbox.get_offset_box(x_offset, y_offset)
-                temp_join_bbox = deepcopy(mainbbox)
-                #print('temp_join_bbox={0}').format(temp_join_bbox)
-                temp_join_bbox.join(temp_sbox)
-                #print('Post join, temp_join_bbox={0}').format(temp_join_bbox)
-            #    print('temp_join_bbox.area={0},min_area={1}'.format(temp_join_bbox.area(),min_area))
-                if temp_join_bbox.area() < min_area:
-                    min_area=temp_join_bbox.area()
-                    best_x = x_offset
-                    best_y = y_offset
-                    print('{0}, {1},min_area={2}'.format(seg, s_coords[s_point_pos],min_area))
     return x_offset, y_offset
 
 # get the desired offsets         
-def get_curr_offsets(self, seg, side_seg, is_a):
+def get_curr_offsets(seg, side_seg, is_a):
     sideOutPoint = Point(0,0)
-    if side_seg.slope == float('nan'):
+    if side_seg.inv_slope == float('nan'):
         if seg.slope == float('nan'):
-            sideOutPoint = side_seg.midPoint
+            sideOutPoint = deepcopy(side_seg.midPoint)
         else:
-            
+            if is_a:
+                next_intercept = side_seg.pointA.y - seg.slope*side_seg.pointA.x
+            else:
+                next_intercept = side_seg.pointB.y - seg.slope*side_seg.pointB.y            
+            sideOutPoint = Point(side_seg.inv_intercept,seg.slope*side_seg.inv_intercept + next_intercept)
+            return sideOutPoint.x, sideOutPoint.y
+    else:
+        if seg.slope == float('nan'):
+            if is_a:
+                next_intercept = side_seg.pointA.x
+            else:
+                next_intercept = side_seg.pointB.x
+            sideOutPoint = Point(next_intercept, side_seg.slope*next_intercept + side_seg.inv_intercept)
+            # leave for now
+        else:
+            if is_a:
+                next_intercept = side_seg.pointA.y - seg.slope*side_seg.pointA.x
+            else:
+                next_intercept = side_seg.pointB.y - seg.slope*side_seg.pointB.x
+            sideOutPoint = deepcopy(side_seg.midPoint)
+            #sideOutPoint = Point((-next_intercept - side_seg.inv_intercept*1.)/(seg.slope + side_seg.inv_slope), sideOutPoint.x*seg.slope+next_intercept)
+    #return -side_seg.pointA.x+seg.outPoint.x, -side_seg.pointA.y+seg.outPoint.y
+    return -sideOutPoint.x+seg.outPoint.x, -sideOutPoint.y+seg.outPoint.y
+        
 
 
     
