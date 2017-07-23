@@ -4,6 +4,7 @@ geometry utils
 
 from hullseg import hullseg
 from shapely.geometry import Point
+from math import atan, cos
 from copy import deepcopy
 def is_clockwise(pts):
     """ returns true if a given linear ring is in clockwise order """
@@ -130,6 +131,7 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
     best_x=0
     best_y=0
     min_area=float('inf')
+    max_diff=0
     hull_list=[]
     side_hull_list=[]
     for i in range(len(m_coords)-1):
@@ -163,27 +165,38 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
         side_hull_list.append(temp_hull_seg)
 
     for seg in hull_list:
-        for side_seg in side_hull_list:
-            # check_point should tell if line through s_point
-            # with slope of seg is internal to s_hull or not
-            is_a = seg.check_point(side_seg.point_pos, m_coords, s_coords)
-            is_b = seg.check_point(side_seg.point_pos+1, m_coords, s_coords)
-                
-            if is_a:# or is_b:
-                # May went to do something with segments on side too
-                # Fix later to do the annoying checking to see where it should lie
-                x_offset, y_offset = get_curr_offsets(seg, side_seg, is_a)
-                temp_sbox = sidebbox.get_offset_box(x_offset, y_offset)
-                temp_join_bbox = deepcopy(mainbbox)
-                #print('temp_join_bbox={0}').format(temp_join_bbox)
-                temp_join_bbox.join(temp_sbox)
-                #print('Post join, temp_join_bbox={0}').format(temp_join_bbox)
-            #    print('temp_join_bbox.area={0},min_area={1}'.format(temp_join_bbox.area(),min_area))
-                if temp_join_bbox.area() < min_area:
-                    min_area=temp_join_bbox.area()
-                    best_x = x_offset
-                    best_y = y_offset
-                    print('{0}, min_area={1}'.format(seg, min_area))
+        # Find the rotated square box with slope of some side according to seg
+         
+        
+        # for side_seg in side_hull_list:
+        #     # check_point should tell if line through s_point
+        #     # with slope of seg is internal to s_hull or not
+        #     is_a = seg.check_point(side_seg.point_pos, m_coords, s_coords)
+        #     is_b = seg.check_point(side_seg.point_pos+1, m_coords, s_coords)
+
+        #     #is_a = True    
+        #     if is_a:# or is_b:
+        #         # May went to do something with segments on side too
+        #         # Fix later to do the annoying checking to see where it should lie
+        #         x_offset, y_offset = get_curr_offsets(seg, side_seg, is_a)
+        #         temp_sbox = sidebbox.get_offset_box(x_offset, y_offset)
+        #         temp_join_bbox = deepcopy(mainbbox)
+        #         #print('temp_join_bbox={0}').format(temp_join_bbox)
+        #         temp_join_bbox.join(temp_sbox)
+        #         temp_diff = min(temp_join_bbox.width/temp_join_bbox.height,
+        #                         temp_join_bbox.height/temp_join_bbox.width)
+        #         if seg.slope == side_seg.slope:
+        #             temp_diff=0
+        #         elif seg.slope == float('nan') or side_seg.slope==float('nan'):
+        #             temp_diff=-1*float('inf')
+        #         else:
+        #             temp_diff = abs(atan(seg.slope)-atan(side_seg.slope))
+        #         if temp_diff < max_diff:
+        #             max_diff = temp_diff
+        #             #min_area=temp_join_bbox.area()
+        #             best_x = x_offset
+        #             best_y = y_offset
+        #             print('{0}, max_diff={1}'.format(seg, max_diff))
 
     return x_offset, y_offset
 
