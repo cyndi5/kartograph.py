@@ -3,7 +3,8 @@ geometry utils
 """
 
 from hullseg import hullseg
-from shapely.geometry import Point
+from feature import create_feature
+from shapely.geometry import Point, Polygon
 from math import atan, cos
 from copy import deepcopy
 def is_clockwise(pts):
@@ -21,6 +22,14 @@ def is_clockwise(pts):
         s += (x2 - x1) * (y2 + y1)
     return s >= 0
 
+# returns 1 if positive, 0 if 0, -1 otherwise
+def sgn(x):
+    if x ==0:
+        return 0
+    elif x>0:
+        return 1
+    else:
+        return -1
 
 def bbox_to_polygon(bbox):
     from shapely.geometry import Polygon
@@ -120,7 +129,9 @@ def get_offset_coords(mainbbox, sidebbox, position_factor):
         return next_side_offset['x'], next_side_offset['y']
 
 # Deal with offset coords in a more sophisticated way
-def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position_factor):
+def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position_factor, the_map):
+    opts = the_map.options
+    data = opts['bounds']['data']
     m_hull = main_geom#geom_to_bbox(main_geom,min_area=0)
     s_hull = side_geom#geom_to_bbox(side_geom,min_area=0)
     dist_param = min(mainbbox.width, mainbbox.height)/10.
@@ -163,50 +174,63 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
         temp_hull_seg=hullseg(pA,pB,pO,distParam=dist_param, point_pos=i)
         print('  current segment-{0}'.format(temp_hull_seg))
         side_hull_list.append(temp_hull_seg)
-
+    best_my_box = None
     for seg in hull_list:
         # Find the rotated square bounding box with slope of some side according to seg
-        my_box = get_box(seg.slope, side_hull)
+        my_box = get_box_pts(seg.slope, s_hull)
+        sidelayer = the_map.layersById[data['sidelayer']]
         box_coords = my_box.exterior.coords
-        if seg.above:
-            temp_x_offset = seg.outPoint.x - (my_box[0][0]+my_box[3][0])/2.
-            temp_y_offset = seg.outPoint.x 
-        
+        # coordinate order is left top right bottom
+        if seg.above and seg.slope >= 0:
+            x_offset = seg.outPoint.x - (box_coords[0][0]+box_coords[3][0])/2.
+            y_offset = seg.outPoint.y - (box_coords[0][1]+box_coords[3][1])/2.
+        elif seg.above and seg.slope < 0:
+            x_offset = seg.outPoint.x - (box_coords[2][0]+box_coords[3][0])/2.
+            y_offset = seg.outPoint.y - (box_coords[2][1]+box_coords[3][1])/2.
+        elif not seg.above and seg.slope >= 0:
+            x_offset = seg.outPoint.x - (box_coords[1][0]+box_coords[2][0])/2.
+            y_offset = seg.outPoint.y - (box_coords[1][1]+box_coords[2][1])/2.
+        else:
+            x_offset = seg.outPoint.x - (box_coords[0][0]+box_coords[1][0])/2.
+            y_offset = seg.outPoint.y - (box_coords[0][1]+box_coords[1][1])/2.
+
+    # Deal with checking how good it is offset 
   
 
     return x_offset, y_offset
 
 # get the possibly rotated box holding the hull with a side parallel 
 def get_box_pts(slope, hull):
-    if slope == 0 or slope == float('nan'):
+    hull_coords = hull.exterior.coords
+    if slope == 0 or abs(slope) == float('inf'):
         temp_bbox=geom_to_bbox(hull.geometry)
-        return Polygon({(temp_bbox.left,temp_bbox.top),(temp_bbox.right,temp_bbox.top),(temp_bbox.right,temp_bbox.bottom),(temp_bbox.left,temp_bbox.bottom),(temp_bbox.left,temp_bbox.top)})
+        return Polygon([(temp_bbox.left,temp_bbox.top),(temp_bbox.right,temp_bbox.top),(temp_bbox.right,temp_bbox.bottom),(temp_bbox.left,temp_bbox.bottom),(temp_bbox.left,temp_bbox.top)])
     else:
         inv_slope = -1./slope
         min_intcpt = float('inf')
         min_inv_intcpt = float('inf')
         max_intcpt = -1*float('inf')
         max_inv_intcpt = -1*float('inf')
-        left_pt=Point(hull[0][0],hull[0][1])
-        right_pt=Point(hull[0][0],hull[0][1])
-        top_pt=Point(hull[0][0],hull[0][1])
-        bottom_pt=Point(hull[0][0],hull[0][1])
-        for coord in hull:
+        left_pt=Point(hull_coords[0][0],hull_coords[0][1])
+        right_pt=Point(hull_coords[0][0],hull_coords[0][1])
+        top_pt=Point(hull_coords[0][0],hull_coords[0][1])
+        bottom_pt=Point(hull_coords[0][0],hull_coords[0][1])
+        for coord in hull_coords:
             curr_intcpt = coord[1] - slope*coord[0]
             curr_inv_intcpt = coord[1] - inv_slope * coord[0]
             if curr_intcpt < min_intcpt:
-                left_pt = Point(coord[0],coord[1])
+                right_pt = Point(coord[0],coord[1])
                 min_intcpt = curr_intcpt
             if curr_intcpt > max_intcpt:
-                right_pt = Point(coord[0],coord[1])
+                left_pt = Point(coord[0],coord[1])
                 max_intcpt = curr_intcpt
             if curr_inv_intcpt < min_inv_intcpt:
-                top_pt = Point(coord[0],coord[1])
+                bottom_pt = Point(coord[0],coord[1])
                 min_inv_intcpt = curr_inv_intcpt
             if curr_inv_intcpt > max_inv_intcpt:
-                bottom_pt = Point(coord[0],coord[1])
+                top_pt = Point(coord[0],coord[1])
                 max_intcpt = curr_inv_intcpt
-        return Polygon({(left_pt.x,left_pt.y),(top_pt.x,top_pt.y),(right_pt.x,right_pt.y),(bottom_pt.x,bottom_pt.y),(left_pt.x,left_pt.y)})
+        return Polygon([(left_pt.x,left_pt.y),(top_pt.x,top_pt.y),(right_pt.x,right_pt.y),(bottom_pt.x,bottom_pt.y),(left_pt.x,left_pt.y)])
 
         
     

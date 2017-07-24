@@ -31,7 +31,7 @@ class hullseg(object):
         self.length = sqrt((pB.x-pA.x)**2+(pB.y-pA.y)**2)
         pO = self.otherPoint
         if self.pointA.x == self.pointB.x:
-            self.slope = float('nan')
+            self.slope = sgn(pB.y-pA.y)*float('inf')
             self.intercept = self.pointA.x
             self.above = self.pointA.x >= self.otherPoint.x
             self.midPoint = Point((pA.x+pB.x)/2,(pA.y+pB.y)/2)
@@ -50,7 +50,7 @@ class hullseg(object):
             self.above = pO.y > pO.x*self.slope+self.intercept
             self.midPoint = Point((pA.x+pB.x)/2,(pA.y+pB.y)/2)
             if distParam is not None and self.slope == 0:
-                self.inv_slope = float('nan')
+                self.inv_slope = (1 if self.above else -1)*float('inf')
                 # Deal with 0 separately because 1/0 = not a number
                 if self.above:
                     self.outPoint = Point(self.midPoint.x,self.midPoint.y-distParam)
@@ -89,14 +89,14 @@ class hullseg(object):
 
     # check if point is above (or on) line (left is below) 
     def is_above(self, pt, slope, intercept):
-        if slope == float('nan'):
+        if abs(slope) == float('inf'):
             return pt.x >= intercept
         else:
             return pt.x*slope+intercept >= pt.y
         
     # check if point is below (or on) line (left is below) 
     def is_below(self, pt, slope, intercept):
-        if slope == float('nan'):
+        if abs(slope) == float('inf'):
             return pt.x <= intercept
         else:
             return pt.x*slope+intercept <= pt.y
@@ -107,7 +107,7 @@ class hullseg(object):
     def check_point(self, s_point_pos, m_coords, s_coords):
         s_point = Point(s_coords[s_point_pos][0],s_coords[s_point_pos][1])
         curr_slope=self.slope
-        if curr_slope == float('nan'):
+        if abs(curr_slope) == float('inf'):
             curr_intercept = s_point.x
         else:
             curr_intercept = s_point.y-curr_slope*s_point.x
@@ -125,5 +125,13 @@ class hullseg(object):
             return self.is_above(s_point_before, curr_slope, curr_intercept) and self.is_above(s_point_after, curr_slope, curr_intercept)
         else:
             return self.is_below(s_point_before, curr_slope, curr_intercept) and self.is_below(s_point_after, curr_slope, curr_intercept)
+
+    def sgn(x):
+        if x ==0:
+            return 0
+        elif x>0:
+            return 1
+        else:
+            return -1
     
             
