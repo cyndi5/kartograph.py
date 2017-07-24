@@ -47,7 +47,7 @@ class hullseg(object):
         else:
             self.slope = (pB.y-pA.y)/(pB.x-pA.x)   # Not the slope in the way we expect
             self.intercept = pA.y-self.slope*pA.x
-            self.above = pO.y > pO.x*self.slope+self.intercept
+            self.above = (pO.y >= pO.x*self.slope+self.intercept)
             self.midPoint = Point((pA.x+pB.x)/2,(pA.y+pB.y)/2)
             if distParam is not None and self.slope == 0:
                 self.inv_slope = (1 if self.above else -1)*float('inf')

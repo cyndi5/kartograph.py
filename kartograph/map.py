@@ -295,16 +295,16 @@ class Map(object):
         
         temp_STATEFP='06'
         layer=self.layersById[data['layer']]
-       # if len(layer.features)>0:
-       #     temp_STATEFP=layer.features[0].props['STATEFP']
-       #     temp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-       #     layer.features.append(temp_feat)
+        if len(layer.features)>0:
+            temp_STATEFP=layer.features[0].props['STATEFP']
+            temp_feat=create_feature(main_geom.convex_hull,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+            layer.features.append(temp_feat)
 
-        layer=self.layersById[data['sidelayer']]
-        #if len(layer.features)>0:
-        #    temp_STATEFP=layer.features[0].props['STATEFP']
-        #    temp_feat=create_feature(side_geom.convex_hull,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-        #    layer.features.append(temp_feat)
+        # layer=self.layersById[data['sidelayer']]
+        # if len(layer.features)>0:
+        #     temp_STATEFP=layer.features[0].props['STATEFP']
+        #     temp_feat=create_feature(side_geom.convex_hull,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+        #     layer.features.append(temp_feat)
         #print 'self._n_side_off={0}'.format(self._n_side_off)
          # transform to offset the sidelayers
         new_proj_bbox=BBox()
