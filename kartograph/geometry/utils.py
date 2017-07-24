@@ -167,49 +167,48 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
     for seg in hull_list:
         # Find the rotated square bounding box with slope of some side according to seg
         my_box = get_box(seg.slope, side_hull)
-         
+        box_coords = my_box.exterior.coords
+        if seg.above:
+            temp_x_offset = seg.outPoint.x - (my_box[0][0]+my_box[3][0])/2.
+            temp_y_offset = seg.outPoint.x 
         
   
 
     return x_offset, y_offset
 
-# get the desired offsets         
-def get_curr_offsets(seg, side_seg, is_a):
-    sideOutPoint = Point(0,0)
-    if side_seg.inv_slope == float('nan'):
-        if seg.slope == float('nan'):
-            sideOutPoint = deepcopy(side_seg.midPoint)
-        else:
-            if is_a:
-                next_intercept = side_seg.pointA.y - seg.slope*side_seg.pointA.x
-            else:
-                next_intercept = side_seg.pointB.y - seg.slope*side_seg.pointB.y            
-            sideOutPoint = Point(side_seg.inv_intercept,seg.slope*side_seg.inv_intercept + next_intercept)
-            return sideOutPoint.x, sideOutPoint.y
-    else:
-        if seg.slope == float('nan'):
-            if is_a:
-                next_intercept = side_seg.pointA.x
-            else:
-                next_intercept = side_seg.pointB.x
-            sideOutPoint = Point(next_intercept, side_seg.slope*next_intercept + side_seg.inv_intercept)
-            # leave for now
-        else:
-            if is_a:
-                next_intercept = side_seg.pointA.y - seg.slope*side_seg.pointA.x
-            else:
-                next_intercept = side_seg.pointB.y - seg.slope*side_seg.pointB.x
-            sideOutPoint = deepcopy(side_seg.midPoint)
-            #sideOutPoint = Point((-next_intercept - side_seg.inv_intercept*1.)/(seg.slope + side_seg.inv_slope), sideOutPoint.x*seg.slope+next_intercept)
-    #return -side_seg.pointA.x+seg.outPoint.x, -side_seg.pointA.y+seg.outPoint.y
-    return -sideOutPoint.x+seg.outPoint.x, -sideOutPoint.y+seg.outPoint.y
-        
-def get_box(slope, hull):
+# get the possibly rotated box holding the hull with a side parallel 
+def get_box_pts(slope, hull):
     if slope == 0 or slope == float('nan'):
-        return geom_to_bbox(hull.geometry)
+        temp_bbox=geom_to_bbox(hull.geometry)
+        return Polygon({(temp_bbox.left,temp_bbox.top),(temp_bbox.right,temp_bbox.top),(temp_bbox.right,temp_bbox.bottom),(temp_bbox.left,temp_bbox.bottom),(temp_bbox.left,temp_bbox.top)})
     else:
         inv_slope = -1./slope
+        min_intcpt = float('inf')
+        min_inv_intcpt = float('inf')
+        max_intcpt = -1*float('inf')
+        max_inv_intcpt = -1*float('inf')
+        left_pt=Point(hull[0][0],hull[0][1])
+        right_pt=Point(hull[0][0],hull[0][1])
+        top_pt=Point(hull[0][0],hull[0][1])
+        bottom_pt=Point(hull[0][0],hull[0][1])
+        for coord in hull:
+            curr_intcpt = coord[1] - slope*coord[0]
+            curr_inv_intcpt = coord[1] - inv_slope * coord[0]
+            if curr_intcpt < min_intcpt:
+                left_pt = Point(coord[0],coord[1])
+                min_intcpt = curr_intcpt
+            if curr_intcpt > max_intcpt:
+                right_pt = Point(coord[0],coord[1])
+                max_intcpt = curr_intcpt
+            if curr_inv_intcpt < min_inv_intcpt:
+                top_pt = Point(coord[0],coord[1])
+                min_inv_intcpt = curr_inv_intcpt
+            if curr_inv_intcpt > max_inv_intcpt:
+                bottom_pt = Point(coord[0],coord[1])
+                max_intcpt = curr_inv_intcpt
+        return Polygon({(left_pt.x,left_pt.y),(top_pt.x,top_pt.y),(right_pt.x,right_pt.y),(bottom_pt.x,bottom_pt.y),(left_pt.x,left_pt.y)})
 
+        
     
         
 
