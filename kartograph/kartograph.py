@@ -75,7 +75,7 @@ class Kartograph(object):
         for layer in _map.layers:
             if layer.id=='countylayer':
                 county_and_flag=False
-                county_list=[(feat.props['NAME'],self.lsad_map[feature.props['LSAD']]) for feat in layer.features]
+                county_list=[(feat.props['NAME'],self.lsad_map[feat.props['LSAD']]) for feat in layer.features]
                 county_list=sorted(county_list)
                 for (county, county_type) in county_list:
                     if county_and_flag:
