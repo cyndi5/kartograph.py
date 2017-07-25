@@ -30,7 +30,7 @@ verbose = False
 
 class Map(object):
 
-    def __init__(me, options, layerCache, format='svg', src_encoding=None,boundCache = None, cache_bounds=False, viewCache = {}, cache_view = False, verbose = False):
+    def __init__(me, options, layerCache, format='svg', src_encoding=None,boundCache = None, cache_bounds=False, viewCache = {}, cache_view = False, cache_union = False, unionCache={}, verbose = False):
         me.verbose = verbose
         me.options = options
         me.format = format
@@ -40,6 +40,9 @@ class Map(object):
         me.cache_view=cache_view
         me.boundCache = boundCache
         me.cache_bounds = cache_bounds
+        me.unionCache = unionCache
+        me.cache_union = cache_union
+#        print 'me.cache_union={0}'.format(me.cache_union)
 #        print 'map.init : me.options={0}'.format(me.options)
         # List and dictionary references to the map layers.
         me.layers = []
@@ -122,7 +125,7 @@ class Map(object):
                 layerMainFilter = lambda rec: filter_record(layer.options['main-filter'], rec)
         #       First, load the geometry of the place we want to highlight 
                 self._main_feat = layer.source.get_main_feat(main_filter=layerMainFilter)
-                self._main_geom = self._main_feat.geometry
+                self._main_place_geom = self._main_feat.geometry
     
         # Initialize the projections that will be used in this map.
         # There will be one projection focusing on the main layer 
@@ -146,7 +149,7 @@ class Map(object):
 
         # Specifically load the regular sidelayer based on whether it intersects with the main geometry
         sidelayer = self.layersById[self.options['bounds']['data']['sidelayer']]
-        sidelayer.get_features(contained_geom=self._main_geom)
+        sidelayer.get_features(contained_geom=self._main_place_geom)
         self.print_debug("done getting {0} features for layer={1}".format(len(sidelayer.features),sidelayer.id))
 
         # Now load the rest of the layers 
@@ -171,7 +174,7 @@ class Map(object):
         #parse_layer_scale(highlighter_opts)
         # Create the new layer
         highlight_layer = MapLayer(highlighter_opts['id'], highlighter_opts, self, None)
-        highlight_layer.add_highlight(sidelayer.features, main_feat)
+        highlight_layer.add_highlight(sidelayer, main_feat)
         self.layers.append(highlight_layer)
         
     # Initialize the projected bounds after getting layers and projecting 
@@ -226,7 +229,7 @@ class Map(object):
     # Scale and offset the side features
     def _scale_offset_side_features(self):
         opts=self.options
-        self._side_offset=self._get_side_offset()
+        self._side_offset=self._get_side_offset() # get the amount scaling requires an offset to fix
         sidebbox=BBox()
         mainbbox=BBox()
         main_geom = None
@@ -234,19 +237,38 @@ class Map(object):
         data = opts['bounds']['data']
         if data['layer'] in self.layersById:
             layer=self.layersById[data['layer']]
+            layer_str='Main:'
+            is_cached = False
+            for feature in layer.features:
+                layer_str+=feature.props['NAME'] #will be rather long, hope its not too slow ...
+            if self.cache_union and layer_str in self.unionCache:
+                is_cached = True
+                main_geom = deepcopy(self.unionCache[layer_str])
+            
             for feature in layer.features:
                 mainbbox.join(geom_to_bbox(feature.geometry,data['min-area']))
-                if main_geom is not None:
+                if not is_cached and main_geom is not None:
                     main_geom=main_geom.union(feature.geometry)
-                else:
+                elif not is_cached:
                     main_geom = deepcopy(feature.geometry)
-
+            if not is_cached:
+                # Cache it
+                self.unionCache[layer_str] = deepcopy(main_geom)
         # Scale the features in the layers associated with the sidelayer
+
+        side_layer_str='Side:'
+        for layer in [layer for layer in self.layers if "sidelayer" in layer.options]:
+            for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
+                side_layer_str+=feat.props['NAME']
+        is_cached = False
+        if self.cache_union and side_layer_str in self.unionCache:
+            is_cached = True
+            side_geom = deepcopy(self.unionCache[side_layer_str])
+
         for layer in [layer for layer in self.layers if "sidelayer" in layer.options]:
             #self.print_debug('scaling {0}'.format(layer.id))
            # for feat in layer.features:
             #    self.print_debug('(A) scaling feature {0}, {1}'.format(feat, feat.props['NAME']))
-
             for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
                 #self.print_debug('scaling feature {0}'.format(feat.props['NAME'].encode('utf-8','replace')))
                 if opts['bounds']['scale-sidelayer']=='auto':
@@ -258,13 +280,14 @@ class Map(object):
                 # bounding bbox 
                 temp_bbox=geom_to_bbox(feat.geometry, data["min-area"])
                 sidebbox.join(temp_bbox)
-                if side_geom is not None:
+                if not is_cached and side_geom is not None:
                     side_geom=side_geom.union(feat.geometry)
-                else:
+                elif not is_cached:
                     side_geom = deepcopy(feat.geometry)
                 #self.print_debug('sidebbox={0}'.format(sidebbox))
+        if not is_cached:
+            self.unionCache[side_layer_str] = deepcopy(side_geom)
         # Create a dummy feature to scale the side bounding geometry
-
 
         temp_feat=create_feature(self._side_bounding_geometry,{})
         temp_feat.scale_feature(scale_factor=layer.options['scale'],offset=self._side_offset)
@@ -315,10 +338,6 @@ class Map(object):
                         #print 'offsetting feature {0}'.format(feature.props['NAME'])
                         feature.offset_feature(self._n_side_off)
                     if layer.id==layer.options['sidelayer']:
-                        #if new_proj_bbox is not None:
-                        #    new_proj_bbox.union(feature.geometry)
-                        #else:
-                        #    new_proj_bbox=deepcopy(feature.geometry)
                         new_proj_bbox.join(geom_to_bbox(feature.geometry,data['min-area']))  
         self._side_projected_bounds=new_proj_bbox
   
@@ -565,16 +584,7 @@ class Map(object):
                 for feat in side_features:
                     y=0
                     self._side_bounding_geometry=self._side_bounding_geometry.union(feat.geometry)
-                  #  side2.geometry = side2.geometry.union(feat.geometry)
-                   # side_ubbox.join(geom_to_bbox(feat.geometry))
-                
-                #side2.project(self.side_proj)
-                #side_fbbox=geom_to_bbox(side2.geometry, data["min-area"])
-                #side_bbox.join(side_fbbox)
-                #self._side_projected_bounds=side_bbox
-                #print 'self._side_projected_bounds={0}'.format(self._side_projected_bounds)
-            #else:
-             #   print "Cannot find side features\n"
+
         # If we need some extra geometry around the map bounds, we inflate
         # the bbox according to the set *padding*.
                            
@@ -698,7 +708,7 @@ class Map(object):
                 filter=filter,
                 min_area=data["min-area"],
                 charset=layer.options['charset'],
-                contained_geom=self._main_geom,
+                contained_geom=self._main_place_geom,
                 bounding=True)
                         )
         #print 'Done getting side bounding, features.len={0}'.format(len(features))
@@ -760,8 +770,7 @@ class Map(object):
         opts=self.options
         # Compute the bounding box of the bounding polygons.
         bbox = deepcopy(self._projected_bounds)
-        bbox.join(deepcopy(self._side_projected_bounds))      #geom_to_bbox(self.projec)
-#        temp_bounds = deepcopy(self._projected_bounds).union(self._side_projected_bounds)
+        bbox.join(deepcopy(self._side_projected_bounds))
         self.src_bbox = bbox#geom_to_bbox(temp_bounds,opts["bounds"]["data"]["min-area"])
         #print 'bbox.width={0}, bbox.height={1}, prod={2}'.format(bbox.width,bbox.height,bbox.width*bbox.height)
         #print 'self._projected_bounds={0}, self._side_projected_bounds={1}, bbox={2}'.format(self._projected_bounds,self._side_projected_bounds, bbox)

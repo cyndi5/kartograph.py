@@ -171,7 +171,7 @@ class MapLayer(object):
     # Add a highlighter to this layer, containing areas is a list of
     # features, feat is a single feature that we want to highlight
     def add_highlight(self, containing_areas, feat):
-        new_feat_geom = self.get_high_circle(containing_areas, feat.geometry)
+        new_feat_geom = self.get_high_circle(containing_areas.features, feat.geometry)
         if new_feat_geom is not None:
             curr_props={'STATEFP':'00', 'COUNTYFP': '000', 'NAME': 'Highlight of '+feat.props['NAME']}
             high_feat=create_feature(new_feat_geom, curr_props)

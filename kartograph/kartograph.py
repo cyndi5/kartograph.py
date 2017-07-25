@@ -28,6 +28,7 @@ class Kartograph(object):
         self.layerCache = {}
         self.boundCache = {}
         self.viewCache = {}
+        self.unionCache = {}
         self.lsad_map={ '01': 'Fake Feature', '03': 'City and Borough','04': 'Borough', '05': 'Census Area','06': 'County','07': 'District', '10': 'Island', '12': 'Municipality', '13': 'Municipio', '15': 'Parish'}
         self.state_fips={'01': 'Alabama', '02': 'Alaska', '04': 'Arizona',
         '05': 'Arkansas', '06': 'California', '08': 'Colorado', '09': 'Connecticut',
@@ -48,7 +49,7 @@ class Kartograph(object):
 
     # new render field to provide an option for rendering wiki places without
     # destroying rest of code
-    def generate(self, opts, outfile=None, format='svg', preview=None, stylesheet=None, render_format='wikiplace', curr_place=00000, cache_bounds=False, cache_view = False, verbose=False):
+    def generate(self, opts, outfile=None, format='svg', preview=None, stylesheet=None, render_format='wikiplace', curr_place=00000, cache_bounds=False, cache_view = False, cache_union = False, verbose=False):
         """
         Generates a the map and renders it using the specified output format.
         """
@@ -70,7 +71,7 @@ class Kartograph(object):
         curr_place_name=''
         curr_state_name=''
         curr_state_fips=''
-        _map = Map(opts, self.layerCache, format=format,boundCache=self.boundCache, cache_bounds=cache_bounds, viewCache=self.viewCache, cache_view=cache_view, verbose=verbose)
+        _map = Map(opts, self.layerCache, format=format,boundCache=self.boundCache, cache_bounds=cache_bounds, viewCache=self.viewCache, cache_view=cache_view, unionCache = self.unionCache, cache_union = cache_union, verbose=verbose)
         for layer in _map.layers:
             if layer.id=='countylayer':
                 county_and_flag=False

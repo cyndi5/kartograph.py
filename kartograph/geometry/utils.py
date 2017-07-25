@@ -199,7 +199,7 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
             y_offset = temp_y_offset
             min_area = temp_bbox.area()
             min_max_side = temp_max_side
-            print('New temp_bbox = {0}, seg.above={1}, seg.slope={2}, min_area={3}, min_max_side={4}'.format(temp_bbox,seg.above,seg.slope, min_area, min_max_side))
+            #print('New temp_bbox = {0}, seg.above={1}, seg.slope={2}, min_area={3}, min_max_side={4}'.format(temp_bbox,seg.above,seg.slope, min_area, min_max_side))
             best_my_box = deepcopy(my_box)
             best_pointA = deepcopy(seg.pointA)#.buffer(dist_param/4.)
             best_pointB = deepcopy(seg.pointB)

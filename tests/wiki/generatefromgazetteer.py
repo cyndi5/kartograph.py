@@ -37,7 +37,7 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
         "src": cb_var_place+"/"+cb_var_place+".shp",
         "filter": lambda record: record['DESIRED_GEOM'],
         "main-filter": lambda record: record['STATEFP']==curr_state and record['PLACEFP']==curr_place,
-      "sidelayer": "countylayer",
+      "sidelayer": "countylayer", 
       "specialstyle": '#placelayer[PLACEFP='+curr_place+']\n{\n\tfill: red;\n}\n'
       }
 
@@ -57,7 +57,7 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
             "auto-side": True
             },
         "scale-sidelayer": "auto",
-        "scale-sidelayer-factor": 1.6
+        "scale-sidelayer-factor": 1.25
    },
      "export":
      {
@@ -77,7 +77,7 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
        "sidelayer":"countylayer"
        }
     print '** Begin generating {0}'.format(curr_place)
-    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place, cache_bounds=True, cache_view=cache_view,verbose=True)
+    K.generate(cfg, outfile=None,stylesheet=css,render_format='Moo', curr_place=curr_place, cache_bounds=True, cache_view=True, cache_union = True, verbose=True)
     print '** End generating {0}'.format(curr_place)
 
 
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--minplace", help="Minimum place FIPS code to add", default="00000")
     parser.add_argument("-x", "--maxplace", help="Maximum place FIPS code to add", default="99999")
     parser.add_argument("-p", "--profiler", help="Output file for profiler", default="profile.out")
-    parser.add_argument("-v", "--viewcache", help="Cache the view", action="store_true")
+    #parser.add_argument("-v", "--viewcache", help="Cache the view", action="store_true")
     parser.add_argument("--showsub", help="Show county subdivisions", action="store_true")
     args=parser.parse_args()
     css=open(args.cssstyle).read()
@@ -105,7 +105,7 @@ if __name__ == "__main__":
            else:
                field_list = re.split('\t',line)
                if not (args.nocdp and field_list[4]=='57') and int(args.minplace)<=int(field_list[1][2:]) and int(args.maxplace)>=int(field_list[1][2:]):
-                   make_this_place(K,css,args.yearfips,args.statefips,field_list[1][2:], args.viewcache, args.showsub)
+                   make_this_place(K,css,args.yearfips,args.statefips,field_list[1][2:], True, args.showsub)
 
     pr.disable()
 #    s=StringIO.StringIO()
