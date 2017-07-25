@@ -16,7 +16,8 @@ verbose = False
 class hullseg(object):
     #pointA is the first point, pointB the second point, otherPoint is used to compute which way is out
     # distParam is none for the side hull 
-    def __init__(self, point1, point2, otherPoint, hull, distParam=None, point_pos = None):
+    def __init__(self, point1, point2, otherPoint, hull, distParam=None, point_pos = None, min_area = None):
+        self.min_area = min_area
         self.point_pos = point_pos
         if point2.x<point1.x:
             self.pointA = point2
@@ -161,7 +162,7 @@ class hullseg(object):
         slope = self.slope
         hull_coords = hull.exterior.coords
         if slope == 0 or abs(slope) == float('inf'):
-            temp_bbox=geom_to_bbox(hull)
+            temp_bbox=geom_to_bbox(hull, self.min_area)
             return Polygon([(temp_bbox.left,temp_bbox.top),(temp_bbox.right,temp_bbox.top),(temp_bbox.right,temp_bbox.bottom),(temp_bbox.left,temp_bbox.bottom),(temp_bbox.left,temp_bbox.top)])
         else:
             inv_slope = -1./slope

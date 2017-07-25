@@ -54,7 +54,8 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
         "data": {
             "layer": "statelayer",
             "sidelayer": "countylayer",
-            "auto-side": True
+            "auto-side": True,
+            "min-area": 0.000
             },
         "scale-sidelayer": "auto",
         "scale-sidelayer-factor": 1.25

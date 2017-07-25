@@ -155,7 +155,7 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
         pB=Point(m_coords[(b_pt_val) % len(m_coords)][0], m_coords[(b_pt_val) % len(m_coords)][1])
         pO=Point(m_coords[(o_pt_val) % len(m_coords)][0], m_coords[(o_pt_val) % len(m_coords)][1])
         #print('{0}, {1}, {2}'.format(pA,pB,pO))
-        temp_hull_seg=hullseg(pA,pB,pO,m_hull,distParam=dist_param)
+        temp_hull_seg=hullseg(pA,pB,pO,m_hull,distParam=dist_param, min_area=data['min-area'])
         # print('current segment slope={0}'.format(temp_hull_seg.slope))
         main_perim+=temp_hull_seg.length
         hull_list.append(temp_hull_seg)

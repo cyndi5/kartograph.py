@@ -78,6 +78,8 @@ class Map(object):
             me.layersById[layer_id] = layer
 
         data = me.options['bounds']['data']
+
+        # Check if everything is cached 
         if 'sidelayer' in data:
             me._init_with_sidelayer()
         else:
@@ -209,7 +211,17 @@ class Map(object):
 
     # Project features to view coordinates using cache
     def _project_to_view_cached(self):
-        bbox_str=str(self.view.bbox)
+        opts=self.options
+        data = opts['bounds']['data']
+        layer_str='{{Main}}:'
+        layer = self.layersById[data['layer']]
+        for feature in layer.features:
+            layer_str+=feature.props['NAME'] #will be rather long, hope its not too slow ...
+        sidelayer_str='{{Side}}:'
+        sidelayer = self.layersById[data['sidelayer']]
+        for feature in sidelayer.features:
+            sidelayer_str+=feature.props['NAME'] #will be rather long, hope its not too slow ...
+        bbox_str=layer_str+';'+sidelayer_str
         if bbox_str not in self.viewCache:
             # add a viewCache for this bbox
             self.viewCache[bbox_str]={}
