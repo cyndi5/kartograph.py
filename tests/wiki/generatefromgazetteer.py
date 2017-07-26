@@ -103,6 +103,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--profiler", help="Output file for profiler", default="profile.out")
     #parser.add_argument("-v", "--viewcache", help="Cache the view", action="store_true")
     parser.add_argument("-d", "--showsub", help="Show county subdivisions in output svgs", action="store_true")
+    
     args=parser.parse_args()
     css=open(args.cssstyle).read()
     pr = cProfile.Profile()
