@@ -36,7 +36,7 @@ class Proj(object):
     def _shift_polygon(self, polygon):
         return [polygon]  # no shifting
 
-    def plot(self, geometry):
+    def plot(self, geometry, inverse = False):
         geometries = hasattr(geometry, 'geoms') and geometry.geoms or [geometry]
         res = []
 
@@ -50,12 +50,15 @@ class Proj(object):
 
         for geom in geometries:
             if isinstance(geom, Polygon):
-                res += self.plot_polygon(geom)
+                res += self.plot_polygon(geom, inverse = inverse)
             elif isinstance(geom, LineString):
-                rings = self.plot_linear_ring(geom)
+                rings = self.plot_linear_ring(geom, inverse = inverse)
                 res += map(LineString, rings)
             elif isinstance(geom, Point):
-                if self._visible(geom.x, geom.y):
+                if self._visible(geom.x, geom.y) and inverse:
+                    x, y = self.project_inverse(geom.x, geom.y)
+                    res.append(Point(x, y))
+                elif self._visible(geom.x, geom.y):
                     x, y = self.project(geom.x, geom.y)
                     res.append(Point(x, y))
             else:
@@ -79,26 +82,30 @@ class Proj(object):
                 else:
                     return Point(res[0].x, res[0].y)
 
-    def plot_polygon(self, polygon):
-        ext = self.plot_linear_ring(polygon.exterior, truncate=True)
+    def plot_polygon(self, polygon, inverse = False):
+        ext = self.plot_linear_ring(polygon.exterior, truncate=True, inverse = inverse)
         if len(ext) == 1:
             pts_int = []
             for interior in polygon.interiors:
-                pts_int += self.plot_linear_ring(interior, truncate=True)
+                pts_int += self.plot_linear_ring(interior, truncate=True, inverse = inverse)
             return [Polygon(ext[0], pts_int)]
         elif len(ext) == 0:
             return []
         else:
             raise KartographError('unhandled case: exterior is split into multiple rings')
 
-    def plot_linear_ring(self, ring, truncate=False):
+    def plot_linear_ring(self, ring, truncate=False, inverse = False):
         ignore = True
         points = []
+        #print 'in linear ring'
         for (lon, lat) in ring.coords:
             vis = self._visible(lon, lat)
             if vis:
                 ignore = False
-            x, y = self.project(lon, lat)
+            if inverse:
+                x, y = self.project_inverse(lon, lat)
+            else:
+                x, y = self.project(lon, lat)
             if not vis and truncate:
                 points.append(self._truncate(x, y))
             else:
@@ -108,9 +115,11 @@ class Proj(object):
         return [points]
 
     def ll(self, lon, lat):
+        print 'll base'
         return (lon, lat)
 
     def project(self, lon, lat):
+        print 'MOO'
         assert False, 'Proj is an abstract class'
 
     def project_inverse(self, x, y):

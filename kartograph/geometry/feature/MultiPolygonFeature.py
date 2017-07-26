@@ -10,10 +10,10 @@ class MultiPolygonFeature(Feature):
     def __repr__(self):
         return 'MultiPolygonFeature(), geometry={0}'.format(self.geometry)
 
-    def project_geometry(self, proj):
+    def project_geometry(self, proj, inverse = False):
         """ project the geometry """
         #print 'Projecting geometry with {0}'.format(proj)
-        self.geometry = proj.plot(self.geometry)
+        self.geometry = proj.plot(self.geometry, inverse = inverse)
 
     def compute_topology(self, point_store, precision=None):
         """

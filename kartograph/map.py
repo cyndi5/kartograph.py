@@ -182,23 +182,28 @@ class Map(object):
     # Initialize the projected bounds after getting layers and projecting 
     def _init_projected_bounds(self):
         opts=self.options
+        proj = self.proj
+        side_proj = self.side_proj
         data = opts['bounds']['data']
         sidelayer_bbox=BBox()
         layer_bbox=BBox()
         auto_scale_factor=1
         # Set up initial projected bounding box
-        if data['sidelayer'] in self.layersById:
-            layer=self.layersById[data['sidelayer']]
-            for feature in layer.features:
-                sidelayer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
+        for layer in self.layers:
+            if 'sidelayer' in layer.options: #data['sidelayer'] in self.layersById:
+                #layer=self.layersById[data['sidelayer']]
+                for feature in layer.features:
+                    feature.project(side_proj)
+                    sidelayer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
         #self._side_projected_bounds=geom_to_bbox(self._side_bounding_geometry)
         #sidelayer_bbox
-        if data['layer'] in self.layersById:
-            layer=self.layersById[data['layer']]
-            for feature in layer.features:
-                #print 'feature.props={0}'.format(feature.props)
-                layer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
-            self._projected_bounds=layer_bbox
+        for layer in self.layers:
+            if layer.id == data['layer']:
+                for feature in layer.features:
+                    #print 'feature.props={0}'.format(feature.props)
+                    feature.project(proj)
+                    layer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
+        self._projected_bounds=layer_bbox
         if opts['bounds']['scale-sidelayer']=='auto':
             auto_scale_factor=opts['bounds']['scale-sidelayer-factor']*sqrt(layer_bbox.width/sidelayer_bbox.width*layer_bbox.height/sidelayer_bbox.height)
         return auto_scale_factor
@@ -258,6 +263,9 @@ class Map(object):
                 main_geom = deepcopy(self.unionCache[layer_str])
             
             for feature in layer.features:
+                #print 'feature.geometry={0}\nself.proj={1}'.format(feature.geometry,self.proj)
+                feature.project(self.proj)
+                #print 'feature.geometry={0}'.format(feature.geometry)
                 mainbbox.join(geom_to_bbox(feature.geometry,data['min-area']))
                 if not is_cached and main_geom is not None:
                     main_geom=main_geom.union(feature.geometry)
@@ -282,6 +290,7 @@ class Map(object):
            # for feat in layer.features:
             #    self.print_debug('(A) scaling feature {0}, {1}'.format(feat, feat.props['NAME']))
             for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
+                feat.project(self.side_proj)
                 #self.print_debug('scaling feature {0}'.format(feat.props['NAME'].encode('utf-8','replace')))
                 if opts['bounds']['scale-sidelayer']=='auto':
                     feat.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
@@ -365,7 +374,7 @@ class Map(object):
         autoLat = 'lat0' in opts['proj'] and opts['proj']['lat0'] == 'auto'
         if autoLon or autoLat:
             map_center = self.__get_map_center()
-            #print('main map_center={0}'.format(map_center))
+            print('main map_center={0}'.format(map_center))
            
             if autoLon:
                 opts['proj']['lon0'] = map_center[0]
@@ -423,8 +432,8 @@ class Map(object):
         # so this comes at low extra cost.
         elif mode[:4] == 'poly':
             features = self._get_bounding_geometry()
-
-            #print 'len(features in bounding)={0}'.format(len(features))
+            temp_bbox=BBox()
+            print 'len(features in bounding)={0}'.format(len(features))
             if len(features) > 0:
                 if isinstance(features[0].geom, BaseGeometry):
                     #print 'MOOO'
@@ -575,8 +584,8 @@ class Map(object):
             side_ubbox=BBox()
             if len(features) > 0:
                 for feature in features:
+                    #feature.project(self.proj)
                     ubbox.join(geom_to_bbox(feature.geometry))
-                    feature.project(self.side_proj)
                     fbbox = geom_to_bbox(feature.geometry, data["min-area"])
                     bbox.join(fbbox)
   #              # Save the unprojected bounding box for later to
@@ -595,6 +604,7 @@ class Map(object):
                 
                 for feat in side_features:
                     y=0
+                    #feat.project(self.side_proj)
                     self._side_bounding_geometry=self._side_bounding_geometry.union(feat.geometry)
 
         # If we need some extra geometry around the map bounds, we inflate

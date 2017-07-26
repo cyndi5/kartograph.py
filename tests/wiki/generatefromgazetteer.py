@@ -41,7 +41,17 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
       "specialstyle": '#placelayer[PLACEFP='+curr_place+']\n{\n\tfill: red;\n}\n'
       }
 
-   }, 
+   },
+   "proj":
+   {
+       "id": "ll",
+       "flip": 1
+    },
+    "sideproj":
+    {
+        "id": "ll",
+        "flip": 1
+    },
    "bounds": 
    {
         "padding": 1.0,

@@ -114,6 +114,7 @@ class Cylindrical(Proj):
         return ['lon0', 'flip']
 
     def ll(self, lon, lat):
+        print 'Calling ll, self.attributes={0}'.format(self.attributes())
         if self.flip == 1:
             return (-lon, -lat)
         return (lon, lat)
@@ -126,11 +127,17 @@ class Equirectangular(Cylindrical):
     def __init__(self, lon0=0.0, lat0=0.0, flip=0):
         self.lat0 = lat0
         self.phi0 = rad(lat0 * -1)
+        print 'MOOOOOOOOOOOO'
+
         Cylindrical.__init__(self, lon0=lon0, flip=flip)
 
     def project(self, lon, lat):
+        print 'Hello'
         lon, lat = self.ll(lon, lat)
         return (lon * math.cos(self.phi0) * 1000, lat * -1 * 1000)
+
+    def project_inverse(self, lon, lat):
+        return self.project(lon, lat*-1)
 
 
 class CEA(Cylindrical):
@@ -204,3 +211,5 @@ class Mercator(Cylindrical):
 class LonLat(Cylindrical):
     def project(self, lon, lat):
         return (lon, lat)
+    def project_inverse(self, lon, lat):
+        return (lon, -1*lat)
