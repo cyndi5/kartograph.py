@@ -43,19 +43,19 @@ class ShapefileLayer(LayerSource):
             prj_text = open(prj_src).read()
             srs = SpatialReference()
             wkt_ret=srs.ImportFromWkt(prj_text)
-            print 'prj_text={0}'.format(prj_text)
-            print "srs={0}".format(srs)
+           # print 'prj_text={0}'.format(prj_text)
+            #print "srs={0}".format(srs)
             if wkt_ret:
                 raise ValueError("Error importing PRJ information from: %s" % prj_file)
             if srs.IsProjected():
                 export_srs=srs.ExportToProj4()
-                print 'srs.IsProjected'
+              #  print 'srs.IsProjected'
                 #print "Groomp"
 #                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
                 self.proj = pyproj.Proj(export_srs)
             else:
                 self.proj = None
-                print 'self.proj = None'
+               # print 'self.proj = None'
                 #export_srs=srs.ExportToProj4()
                 #self.proj=pyproj.Proj(init='epsg:26915')
                 #self.proj = pyproj.Proj(export_srs)

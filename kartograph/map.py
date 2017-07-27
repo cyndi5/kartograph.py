@@ -78,18 +78,23 @@ class Map(object):
             me.layersById[layer_id] = layer
 
         data = me.options['bounds']['data']
-
+        cache_str = None
         # Check if everything is cached 
         if 'sidelayer' in data:
-            me._init_with_sidelayer()
+            cache_str = me._init_with_sidelayer()
         else:
             # only handles with sidelayers for now
             raise KartographError('sidelayer not found')
-        
-        # Do the view AFTER projecting 
-        me.view = me._get_view()
-        # Get the polygon (in fact it's a rectangle in most cases) that will be used
-        # to clip away unneeded geometry unless *cfg['export']['crop-to-view']* is set to false.
+
+        if not me.cache_view or cache_str is None or cache_str not in me.viewCache:
+            # Do the view AFTER projecting 
+            me.view = me._get_view()
+            # Get the polygon (in fact it's a rectangle in most cases) that will be used
+            # to clip away unneeded geometry unless *cfg['export']['crop-to-view']* is set to false.
+        else:
+            me.view = me.viewCache[cache_str]['{{VIEW}}']
+            me.src_bbox = me.view.bbox
+            
         me.view_poly = me._init_view_poly()
 
         if me.cache_view:
@@ -160,7 +165,14 @@ class Map(object):
                 layer.get_features()
                 self.print_debug("done getting {0} features for layer={1}".format(len(layer.features),layer.id))
 
-       
+        cache_str = self._get_cache_str()
+        if cache_str not in self.viewCache:
+            self._finish_init_sidelayer(mainFilterLayer, sidelayer)
+            return None
+        else:
+            return cache_str
+    
+    def _finish_init_sidelayer(self, mainFilterLayer, sidelayer):   
         # initialize the projected bounds of the main layer and the sidelayer
         self._auto_scale_factor=self._init_projected_bounds()
         
@@ -193,7 +205,7 @@ class Map(object):
             if 'sidelayer' in layer.options: #data['sidelayer'] in self.layersById:
                 #layer=self.layersById[data['sidelayer']]
                 for feature in layer.features:
-                    feature.project(side_proj)
+                    #feature.project(side_proj)
                     sidelayer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
         #self._side_projected_bounds=geom_to_bbox(self._side_bounding_geometry)
         #sidelayer_bbox
@@ -201,7 +213,7 @@ class Map(object):
             if layer.id == data['layer']:
                 for feature in layer.features:
                     #print 'feature.props={0}'.format(feature.props)
-                    feature.project(proj)
+                    #feature.project(proj)
                     layer_bbox.join(geom_to_bbox(feature.geometry, data["min-area"]))
         self._projected_bounds=layer_bbox
         if opts['bounds']['scale-sidelayer']=='auto':
@@ -214,8 +226,7 @@ class Map(object):
             for feature in layer.features:
                 feature.project_view(self.view)
 
-    # Project features to view coordinates using cache
-    def _project_to_view_cached(self):
+    def _get_cache_str(self):
         opts=self.options
         data = opts['bounds']['data']
         layer_str='{{Main}}:'
@@ -226,22 +237,28 @@ class Map(object):
         sidelayer = self.layersById[data['sidelayer']]
         for feature in sidelayer.features:
             sidelayer_str+=feature.props['NAME'] #will be rather long, hope its not too slow ...
-        bbox_str=layer_str+';'+sidelayer_str
-        if bbox_str not in self.viewCache:
+        cache_str=layer_str+';'+sidelayer_str
+        return cache_str
+
+    # Project features to view coordinates using cache
+    def _project_to_view_cached(self):
+        cache_str = self._get_cache_str()
+        if cache_str not in self.viewCache:
             # add a viewCache for this bbox
-            self.viewCache[bbox_str]={}
+            self.viewCache[cache_str]={}
+            self.viewCache[cache_str]['{{VIEW}}'] = self.view
         for layer in self.layers:
-            if layer.id not in self.viewCache[bbox_str]:
-                self.viewCache[bbox_str][layer.id]={}
+            if layer.id not in self.viewCache[cache_str]:
+                self.viewCache[cache_str][layer.id]={}
             for feature in layer.features:
-                if feature.props['NAME'] not in self.viewCache[bbox_str][layer.id]:
+                if feature.props['NAME'] not in self.viewCache[cache_str][layer.id]:
                     feature.project_view(self.view)
-                    self.viewCache[bbox_str][layer.id][feature.props['NAME']]=deepcopy(feature)
+                    self.viewCache[cache_str][layer.id][feature.props['NAME']]=deepcopy(feature)
                    
                 else:
                     #print('Cached {0}'.format(feature.props['NAME']))
-                    feature.geometry=deepcopy(self.viewCache[bbox_str][layer.id][feature.props['NAME']].geometry)
-                    #print 'cached feature {0}'.format(self.viewCache[bbox_str][layer.id][feature.props['NAME']])
+                    feature.geometry=deepcopy(self.viewCache[cache_str][layer.id][feature.props['NAME']].geometry)
+                    #print 'cached feature {0}'.format(self.viewCache[cache_str][layer.id][feature.props['NAME']])
     
     # Scale and offset the side features
     def _scale_offset_side_features(self):
@@ -264,7 +281,7 @@ class Map(object):
             
             for feature in layer.features:
                 #print 'feature.geometry={0}\nself.proj={1}'.format(feature.geometry,self.proj)
-                feature.project(self.proj)
+                #feature.project(self.proj)
                 #print 'feature.geometry={0}'.format(feature.geometry)
                 mainbbox.join(geom_to_bbox(feature.geometry,data['min-area']))
                 if not is_cached and main_geom is not None:
@@ -290,7 +307,7 @@ class Map(object):
            # for feat in layer.features:
             #    self.print_debug('(A) scaling feature {0}, {1}'.format(feat, feat.props['NAME']))
             for feat in [f for f in layer.features if isinstance(f,MultiPolygonFeature)]:
-                feat.project(self.side_proj)
+                #feat.project(self.side_proj)
                 #self.print_debug('scaling feature {0}'.format(feat.props['NAME'].encode('utf-8','replace')))
                 if opts['bounds']['scale-sidelayer']=='auto':
                     feat.scale_feature(scale_factor=self._auto_scale_factor,offset=self._side_offset)
