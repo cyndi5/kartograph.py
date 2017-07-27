@@ -42,6 +42,7 @@ class Map(object):
         me.cache_bounds = cache_bounds
         me.unionCache = unionCache
         me.cache_union = cache_union
+        print('len of caches: viewCache={0}, boundCache={1}, unionCache={2}'.format(len(me.viewCache), len(me.boundCache), len(me.unionCache)))
 #        print 'me.cache_union={0}'.format(me.cache_union)
 #        print 'map.init : me.options={0}'.format(me.options)
         # List and dictionary references to the map layers.
@@ -159,20 +160,24 @@ class Map(object):
         sidelayer.get_features(contained_geom=self._main_place_geom)
         self.print_debug("done getting {0} features for layer={1}".format(len(sidelayer.features),sidelayer.id))
 
-        # Now load the rest of the layers 
-        for layer in self.layers:
-            if layer.id!=data['sidelayer']:
-                layer.get_features()
-                self.print_debug("done getting {0} features for layer={1}".format(len(layer.features),layer.id))
-
         cache_str = self._get_cache_str()
         if cache_str not in self.viewCache:
             self._finish_init_sidelayer(mainFilterLayer, sidelayer)
             return None
         else:
             return cache_str
+
+        
     
-    def _finish_init_sidelayer(self, mainFilterLayer, sidelayer):   
+    def _finish_init_sidelayer(self, mainFilterLayer, sidelayer):
+        opts=self.options
+        data = opts['bounds']['data']               
+
+        # Now load the rest of the layers 
+        for layer in self.layers:
+            if layer.id!=data['sidelayer']:
+                layer.get_features()
+                self.print_debug("done getting {0} features for layer={1}".format(len(layer.features),layer.id))
         # initialize the projected bounds of the main layer and the sidelayer
         self._auto_scale_factor=self._init_projected_bounds()
         
@@ -227,17 +232,18 @@ class Map(object):
                 feature.project_view(self.view)
 
     def _get_cache_str(self):
+        # Note if we do one state at a time, we only need the sidelayer loaded to check for caching
         opts=self.options
         data = opts['bounds']['data']
-        layer_str='{{Main}}:'
-        layer = self.layersById[data['layer']]
-        for feature in layer.features:
-            layer_str+=feature.props['NAME'] #will be rather long, hope its not too slow ...
+        #layer_str='{{Main}}:'
+        #layer = self.layersById[data['layer']]
+        #for feature in layer.features:
+        #    layer_str+=feature.props['NAME'] #will be rather long, hope its not too slow ...
         sidelayer_str='{{Side}}:'
         sidelayer = self.layersById[data['sidelayer']]
         for feature in sidelayer.features:
             sidelayer_str+=feature.props['NAME'] #will be rather long, hope its not too slow ...
-        cache_str=layer_str+';'+sidelayer_str
+        cache_str=sidelayer_str # layer_str + ";" + sidelayer_str
         return cache_str
 
     # Project features to view coordinates using cache
@@ -247,18 +253,32 @@ class Map(object):
             # add a viewCache for this bbox
             self.viewCache[cache_str]={}
             self.viewCache[cache_str]['{{VIEW}}'] = self.view
-        for layer in self.layers:
-            if layer.id not in self.viewCache[cache_str]:
-                self.viewCache[cache_str][layer.id]={}
-            for feature in layer.features:
-                if feature.props['NAME'] not in self.viewCache[cache_str][layer.id]:
-                    feature.project_view(self.view)
-                    self.viewCache[cache_str][layer.id][feature.props['NAME']]=deepcopy(feature)
-                   
+            for layer in self.layers:
+                if layer.id not in self.viewCache[cache_str]:
+                    self.viewCache[cache_str][layer.id]={}
+                for feature in layer.features:
+                    if feature.props['NAME'] not in self.viewCache[cache_str][layer.id]:
+                        feature.project_view(self.view)
+                        self.viewCache[cache_str][layer.id][feature.props['NAME']]=deepcopy(feature)
+
+                    else:
+                        #print('Cached {0}'.format(feature.props['NAME']))
+                        feature.geometry=deepcopy(self.viewCache[cache_str][layer.id][feature.props['NAME']].geometry)
+                        #print 'cached feature {0}'.format(self.viewCache[cache_str][layer.id][feature.props['NAME']])
+        else:
+            # It's already been cached, load it all from cache
+            for layer in self.layers:
+                if len(layer.features)==0:
+                    # nothing there just append everything
+                    for feat_name in self.viewCache[cache_str][layer.id]:
+                        layer.features.append(deepcopy(self.viewCache[cache_str][layer.id][feat_name]))
                 else:
-                    #print('Cached {0}'.format(feature.props['NAME']))
-                    feature.geometry=deepcopy(self.viewCache[cache_str][layer.id][feature.props['NAME']].geometry)
-                    #print 'cached feature {0}'.format(self.viewCache[cache_str][layer.id][feature.props['NAME']])
+                    for feature in layer.features:
+                        feature.geometry=deepcopy(self.viewCache[cache_str][layer.id][feature.props['NAME']].geometry)
+    
+                        
+                       
+            
     
     # Scale and offset the side features
     def _scale_offset_side_features(self):

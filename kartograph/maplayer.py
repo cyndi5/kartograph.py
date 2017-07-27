@@ -28,6 +28,7 @@ class MapLayer(object):
 #        print 'self.options={0}'.format(self.options)
         self.map = _map
         self.cache = cache
+        self.features=[]
         self.special_fips = special_fips
         self.max_area_for_circle=.001
         self.high_exp_factor=1.75
