@@ -29,8 +29,8 @@ class MapLayer(object):
         self.map = _map
         self.cache = cache
         self.special_fips = special_fips
-        self.max_area_for_circle=.002
-        self.high_exp_factor=1.75
+        self.max_area_for_circle=.001
+        self.high_exp_factor=2.00
         if cache is not None and 'features' in cache:
             self.proj_feat_cache=cache['features']
         elif cache is not None:
