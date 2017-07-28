@@ -26,7 +26,7 @@ do
 	    echo 's, ' $1 $2
             sarg="$2"; shift; 
             shift;;
-	-y)
+	-y|-x|-m)
 	    yarg="$2"; shift;
 	    shift;;
         --)
