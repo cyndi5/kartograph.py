@@ -5,7 +5,7 @@ from geometry.utils import join_features
 from geometry import create_feature
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
-from geometry.utils import get_offset_coords, get_offset_coords_complex
+from geometry.utils import get_offset_coords, get_offset_coords_complex, get_offset_coords_super_complex
 from geometry.feature import Feature, MultiPolygonFeature
 from math import sqrt
 from options import parse_curr_layer
