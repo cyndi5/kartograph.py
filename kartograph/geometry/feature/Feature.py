@@ -18,7 +18,7 @@ class Feature(object):
 
     def project(self, proj):
         #print 'proj={0}'.format(proj)
-        self.project_geometry(proj, inverse = True)
+        self.project_geometry(proj, inverse = False)
 
     def unify(self, point_store, precision=None):
         from kartograph.simplify import unify_polygons
