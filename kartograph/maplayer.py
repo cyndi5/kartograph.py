@@ -28,9 +28,14 @@ class MapLayer(object):
 #        print 'self.options={0}'.format(self.options)
         self.map = _map
         self.cache = cache
+        self.features=[]
         self.special_fips = special_fips
         self.max_area_for_circle=.001
+<<<<<<< HEAD
         self.high_exp_factor=2.00
+=======
+        self.high_exp_factor=1.75
+>>>>>>> b82231c405fd52b78af41036c6aabf93ea270ff3
         if cache is not None and 'features' in cache:
             self.proj_feat_cache=cache['features']
         elif cache is not None:
@@ -171,7 +176,7 @@ class MapLayer(object):
     # Add a highlighter to this layer, containing areas is a list of
     # features, feat is a single feature that we want to highlight
     def add_highlight(self, containing_areas, feat):
-        new_feat_geom = self.get_high_circle(containing_areas, feat.geometry)
+        new_feat_geom = self.get_high_circle(containing_areas.features, feat.geometry)
         if new_feat_geom is not None:
             curr_props={'STATEFP':'00', 'COUNTYFP': '000', 'NAME': 'Highlight of '+feat.props['NAME']}
             high_feat=create_feature(new_feat_geom, curr_props)

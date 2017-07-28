@@ -43,23 +43,26 @@ class ShapefileLayer(LayerSource):
             prj_text = open(prj_src).read()
             srs = SpatialReference()
             wkt_ret=srs.ImportFromWkt(prj_text)
- #           print "srs={0}".format(srs)
+           # print 'prj_text={0}'.format(prj_text)
+            #print "srs={0}".format(srs)
             if wkt_ret:
                 raise ValueError("Error importing PRJ information from: %s" % prj_file)
             if srs.IsProjected():
-                export_srs=srs.ExportToProj4()   
+                export_srs=srs.ExportToProj4()
+              #  print 'srs.IsProjected'
                 #print "Groomp"
 #                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
                 self.proj = pyproj.Proj(export_srs)
             else:
                 self.proj = None
-               # export_srs=srs.ExportToProj4()   
-#                self.proj=pyproj.Proj(proj='utm',zone=10,ellps='WGS84')
-#                self.proj=pyproj.Proj(laea, lon0=-76.5893672159, lat0=38.975237
+               # print 'self.proj = None'
+                #export_srs=srs.ExportToProj4()
+                #self.proj=pyproj.Proj(init='epsg:26915')
                 #self.proj = pyproj.Proj(export_srs)
+        
         else:
-            #print 'choo'
-            self.proj=pyproj.Proj(proj='utm',zone=10,ellps='GRS80')
+            print 'choo'
+            #self.proj=pyproj.Proj(proj='utm',zone=10,ellps='GRS80')
            #   
             #self.proj = pyproj.Proj(init='epsg:26915')
 
@@ -90,7 +93,7 @@ class ShapefileLayer(LayerSource):
             shp = self.shapes[i] = self.sr.shapeRecord(i).shape
         return shp
 
-    def get_geom(self, i, ignore_holes=False, min_area=0, bbox=None):
+    def get_geom(self, i, ignore_holes=False, min_area=0, bbox=None, proj = None):
         """ Get shape
         Returns a geom for this shapefile. If the geom is requested for the first time,
         it will be loaded via shape2geometry. Otherwise it will loaded from cache.
@@ -152,7 +155,7 @@ class ShapefileLayer(LayerSource):
                 shp=self.get_shape(i)
                 shp.bounding=bounding
                 shp.the_feat_name=the_feat_name
-                geom = self.get_geom(i,ignore_holes=ignore_holes, min_area=min_area, bbox=bbox)
+                geom = self.get_geom(i,ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
     #(shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
                 if geom is None:
                     ignored += 1
@@ -206,7 +209,7 @@ class ShapefileLayer(LayerSource):
                     shp.bounding=bounding
                     shp.the_feat_name=the_feat_name
                 # ..and convert the raw shape into a shapely.geometry
-                    geom = self.get_geom(i,ignore_holes=ignore_holes, min_area=min_area, bbox=bbox)
+                    geom = self.get_geom(i,ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
                     #shape2geometry(shp, ignore_holes=ignore_holes, min_area=min_area, bbox=bbox, proj=self.proj)
                     if geom is None:
                         ignored += 1

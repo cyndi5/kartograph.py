@@ -8,9 +8,9 @@ class MultiLineFeature(Feature):
     def __repr__(self):
         return 'MultiLineFeature(' + str(len(self.geometry.coords)) + ' pts)'
 
-    def project_geometry(self, proj):
+    def project_geometry(self, proj, inverse = False):
         """ project the geometry """
-        self.geometry = proj.plot(self.geometry)
+        self.geometry = proj.plot(self.geometry, inverse = inverse)
 
     def is_simplifyable(self):
         return True

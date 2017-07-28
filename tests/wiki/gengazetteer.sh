@@ -1,8 +1,6 @@
 #!/bin/sh
 
-args=`getopt s:y:n $@`
-# you should not use `getopt abo: "$@"` since that would parse
-# the arguments differently from what the set command below does.
+args=`getopt s:y:m:x:p:nd $@`
 if [ $? != 0 ]
 then
     echo 'Usage: ...'
@@ -20,6 +18,10 @@ do
         -n|-b)
             sflags="$1 ${sflags}";
             shift;;
+	-d)
+	    sflags="$1 ${sflags}";
+	    showsub=1
+	    shift;;
         -s)
 	    echo 's, ' $1 $2
             sarg="$2"; shift; 
@@ -32,6 +34,7 @@ do
     esac
 done
 
+echo "showsub=${showsub}"
 
 if [ -d "cb_${yarg}_us_county_500k" ]
 then
@@ -57,6 +60,17 @@ then
     echo "${yarg}_gas_place_${sarg}.txt exists"
 else
     wget https://www2.census.gov/geo/docs/maps-data/data/gazetteer/${yarg}_Gazetteer/${yarg}_gaz_place_${sarg}.txt
+fi
+
+if [[ "${showsub}" -ne 1 ]]
+then
+    echo "Not showing subdivisions"
+elif [  -d "cb_${yarg}_${sarg}_cousub_500k" ]
+then
+    echo "cb_${yarg}_${sarg}_cousub_500k exists"
+else
+    wget http://www2.census.gov/geo/tiger/GENZ${yarg}/shp/cb_${yarg}_${sarg}_cousub_500k.zip
+    unzip cb_${yarg}_${sarg}_cousub_500k.zip -d cb_${yarg}_${sarg}_cousub_500k
 fi
 
 echo ${sarg} ${yarg}

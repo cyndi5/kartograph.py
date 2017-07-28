@@ -4,7 +4,7 @@ geometry utils
 
 from hullseg import hullseg
 from feature import create_feature
-from shapely.geometry import Point, Polygon, LineString
+from shapely.geometry import Point, Polygon, LineString, MultiPolygon
 from math import atan, cos
 from copy import deepcopy
 def is_clockwise(pts):
@@ -137,14 +137,17 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
     s_hull = side_geom#geom_to_bbox(side_geom,min_area=0)
     dist_param = min(mainbbox.width, mainbbox.height)/25.
 
-    m_coords = m_hull.exterior.coords
-    s_coords = s_hull.exterior.coords
+    
 
     best_x=0
     best_y=0
     min_area=float('inf')
     max_diff=0
     min_max_side=float('inf')
+    
+    m_coords = m_hull.exterior.coords
+    s_coords = s_hull.exterior.coords
+
     hull_list=[]
     side_hull_list=[]
     main_perim=0
@@ -155,7 +158,7 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
         pB=Point(m_coords[(b_pt_val) % len(m_coords)][0], m_coords[(b_pt_val) % len(m_coords)][1])
         pO=Point(m_coords[(o_pt_val) % len(m_coords)][0], m_coords[(o_pt_val) % len(m_coords)][1])
         #print('{0}, {1}, {2}'.format(pA,pB,pO))
-        temp_hull_seg=hullseg(pA,pB,pO,m_hull,distParam=dist_param)
+        temp_hull_seg=hullseg(pA,pB,pO,m_hull,distParam=dist_param, min_area=data['min-area'])
         # print('current segment slope={0}'.format(temp_hull_seg.slope))
         main_perim+=temp_hull_seg.length
         hull_list.append(temp_hull_seg)
@@ -199,7 +202,7 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
             y_offset = temp_y_offset
             min_area = temp_bbox.area()
             min_max_side = temp_max_side
-            print('New temp_bbox = {0}, seg.above={1}, seg.slope={2}, min_area={3}, min_max_side={4}'.format(temp_bbox,seg.above,seg.slope, min_area, min_max_side))
+            #print('New temp_bbox = {0}, seg.above={1}, seg.slope={2}, min_area={3}, min_max_side={4}'.format(temp_bbox,seg.above,seg.slope, min_area, min_max_side))
             best_my_box = deepcopy(my_box)
             best_pointA = deepcopy(seg.pointA)#.buffer(dist_param/4.)
             best_pointB = deepcopy(seg.pointB)
@@ -222,6 +225,111 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
     # statelayer.features.append(temp_feat2)
     
     return x_offset, y_offset
+
+def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, position_factor, the_map):
+    opts = the_map.options
+    data = opts['bounds']['data']
+    sidelayer = the_map.layersById[data['sidelayer']]
+    m_hull = main_geom#geom_to_bbox(main_geom,min_area=0)
+    s_hull = side_geom#geom_to_bbox(side_geom,min_area=0)
+    dist_param = min(mainbbox.width, mainbbox.height)/25.
+
+    mainbbox = geom_to_bbox(main_geom,data['min-area'])
+
+    best_x=0
+    best_y=0
+    min_area=float('inf')
+    max_diff=0
+    min_max_side=float('inf')
+    
+    #m_coords = m_hull.exterior.coords
+    #s_coords = s_hull.exterior.coords
+
+    hull_list=[]
+    side_hull_list=[]
+    main_perim=0
+    polygons = isinstance(main_geom, MultiPolygon) and main_geom or [main_geom]
+    for poly in polygons:
+        m_coords = poly.exterior.coords
+        for i in range(len(m_coords)-1):
+            pA=Point(m_coords[i % len(m_coords)][0], m_coords[i % len(m_coords)][1])
+            b_pt_val=i+1
+            o_pt_val = i+2 if i<len(m_coords)-2 else i+3
+            pB=Point(m_coords[(b_pt_val) % len(m_coords)][0], m_coords[(b_pt_val) % len(m_coords)][1])
+            pO=Point(m_coords[(o_pt_val) % len(m_coords)][0], m_coords[(o_pt_val) % len(m_coords)][1])
+            #print('{0}, {1}, {2}'.format(pA,pB,pO))
+            temp_hull_seg=hullseg(pA,pB,pO,m_hull,distParam=dist_param, min_area=data['min-area'])
+            # print('current segment slope={0}'.format(temp_hull_seg.slope))
+            main_perim+=temp_hull_seg.length
+            hull_list.append(temp_hull_seg)
+
+ 
+    best_my_box = None
+    best_seg = None
+    for seg in hull_list:
+        # Find the rotated square bounding box with slope of some side according to seg
+        #if seg.length < 0 * main_perim/len(hull_list):
+        #    continue
+        my_box = seg.get_box_pts(side_geom.convex_hull)
+        sidelayer = the_map.layersById[data['sidelayer']]
+        box_coords = my_box.exterior.coords
+        # coordinate order is left top right bottom
+        if seg.above and seg.slope >= 0:
+            temp_x_offset = seg.outPoint.x - (box_coords[3][0]+box_coords[0][0])/2.
+            temp_y_offset = seg.outPoint.y - (box_coords[3][1]+box_coords[0][1])/2.
+        elif seg.above and seg.slope < 0:
+            temp_x_offset = seg.outPoint.x - (box_coords[3][0]+box_coords[0][0])/2.
+            temp_y_offset = seg.outPoint.y - (box_coords[3][1]+box_coords[0][1])/2.
+        elif not seg.above and seg.slope >= 0:
+            temp_x_offset = seg.outPoint.x - (box_coords[2][0]+box_coords[1][0])/2.
+            temp_y_offset = seg.outPoint.y - (box_coords[2][1]+box_coords[1][1])/2.
+        elif not seg.above and seg.slope < 0:
+            temp_x_offset = seg.outPoint.x - (box_coords[1][0]+box_coords[2][0])/2.
+            temp_y_offset = seg.outPoint.y - (box_coords[1][1]+box_coords[2][1])/2.
+        else:
+            continue
+        my_feat = create_feature(deepcopy(side_geom.convex_hull),{})
+        #print('my_feat.geometry={0}'.format(my_feat.geometry))
+        my_feat.offset_feature(offset={'x': temp_x_offset, 'y': temp_y_offset})
+        #print('my_feat.geometry={0}'.format(my_feat.geometry))
+        print 'mainbbox={0}'.format(mainbbox)
+        temp_bbox=deepcopy(mainbbox)
+        temp_bbox.join(geom_to_bbox(my_feat.geometry,data['min-area']))
+     
+        print('now temp_bbox={0}'.format(temp_bbox))
+
+        #print('hullseg={0}\n\tarea={1}\n\n'.format(seg,temp_bbox.area()))
+        temp_max_side = max(temp_bbox.height,temp_bbox.width)
+        if temp_max_side < min_max_side and my_feat.geometry.distance(main_geom) >= dist_param: #temp_bbox.area() < min_area:
+            x_offset = temp_x_offset
+            y_offset = temp_y_offset
+            min_area = temp_bbox.area()
+            min_max_side = temp_max_side
+            #print('New temp_bbox = {0}, seg.above={1}, seg.slope={2}, min_area={3}, min_max_side={4}'.format(temp_bbox,seg.above,seg.slope, min_area, min_max_side))
+            best_my_box = deepcopy(my_box)
+            best_pointA = deepcopy(seg.pointA)#.buffer(dist_param/4.)
+            best_pointB = deepcopy(seg.pointB)
+            best_out_point = deepcopy(seg.outPoint)
+            
+    # Deal with checking how good it is offset 
+
+    # temp_STATEFP=sidelayer.features[0].props['STATEFP']
+    # temp_feat=create_feature(best_my_box,{'NAME': 'Side Box', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+    # sidelayer.options['specialstyle']+='#countylayer[PLACEFP=00000] { fill: none; }\n'
+    # sidelayer.features.append(temp_feat)
+
+    # statelayer = the_map.layersById['statelayer']
+    # temp_feat = create_feature(best_out_point.buffer(dist_param/4.), {'NAME': 'Place Point', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '99999'})
+    # temp_feat2 = create_feature(LineString([(best_pointA.x,best_pointA.y), (best_pointB.x,best_pointB.y)] ), {'NAME': 'Best Seg', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '99998'})
+    # statelayer.options['specialstyle']=''
+    # statelayer.options['specialstyle']+='#statelayer[PLACEFP=99999]\n{\n\tfill: black;\n}\n'
+    # statelayer.options['specialstyle']+='#statelayer[PLACEFP=99998]\n{\n\tstroke: red;\nstroke-width: 5px;\n}\n'
+    # statelayer.features.append(temp_feat)
+    # statelayer.features.append(temp_feat2)
+    
+    return x_offset, y_offset
+
+
 
 def pt_on_line(pt, slope, intercept):
     if abs(slope)==float('inf'):

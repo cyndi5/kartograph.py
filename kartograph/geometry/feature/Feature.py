@@ -17,7 +17,8 @@ class Feature(object):
         return 'Feature(' + self.geometry.__class__.__name__ + ')'
 
     def project(self, proj):
-        self.project_geometry(proj)
+        #print 'proj={0}'.format(proj)
+        self.project_geometry(proj, inverse = True)
 
     def unify(self, point_store, precision=None):
         from kartograph.simplify import unify_polygons
@@ -54,8 +55,9 @@ class Feature(object):
                 if verbose:
                     sys.stderr.write('warning: couldnt subtract from geometry')
 
-    def project_geometry(self, proj):
-        self.geometry = proj.plot(self.geometry)
+    def project_geometry(self, proj, inverse = False):
+        #self.geometry = self.geometry
+        self.geometry = proj.plot(self.geometry, inverse=inverse)
 
     def is_empty(self):
         return self.geom is not None
