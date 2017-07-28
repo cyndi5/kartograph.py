@@ -62,7 +62,7 @@ else
     wget https://www2.census.gov/geo/docs/maps-data/data/gazetteer/${yarg}_Gazetteer/${yarg}_gaz_place_${sarg}.txt
 fi
 
-if [ ${showsub} != 1 ]
+if [[ "${showsub}" -ne 1 ]]
 then
     echo "Not showing subdivisions"
 elif [  -d "cb_${yarg}_${sarg}_cousub_500k" ]
