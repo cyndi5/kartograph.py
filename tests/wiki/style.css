@@ -32,17 +32,9 @@ fill: #ffffff;
 #statelayer
 {
   fill: #e8e2b7;
-   opacity: 0.2;
+#   opacity: 0.2;
 }
 
-#statelayer[PLACEFP=00000]
-{
-#	fill: black;
-	opacity: 1.0;
-	stroke: black;
-	stroke-width: 4px;
-	fill: none;
-}
 
 #highlightlayer
 {
