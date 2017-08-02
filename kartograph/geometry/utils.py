@@ -230,10 +230,23 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
     opts = the_map.options
     data = opts['bounds']['data']
     sidelayer = the_map.layersById[data['sidelayer']]
-    m_hull = main_geom#geom_to_bbox(main_geom,min_area=0)
-    s_hull = side_geom#geom_to_bbox(side_geom,min_area=0)
-
-    return main_geom.simply(0.25,preserve_topology=True)
+    m_hulls = main_geom#geom_to_bbox(main_geom,min_area=0)
+    s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
+    if not isinstance(main_geom, MultiPolygon):
+        m_hulls = [main_geom]
+    i=l
+    j=0
+    k=0
+    for poly in m_hulls:
+        temp_poly_list=[]
+        coords = poly.exterior.coords
+        i = len(coords)-2
+        j=0
+        k=1
+        for i in range(0,len(coords)):
+            
+            
+    return main_geom
 #    return x_offset, y_offset
 
 
