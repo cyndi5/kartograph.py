@@ -88,7 +88,7 @@ class Kartograph(object):
                 curr_state_fips=feature.props['STATEFP']
             for feature in layer.features:
                 if 'PLACEFP' in feature.props and feature.props['PLACEFP']==curr_place: # this is highlighting place
-                    curr_place_name=re.sub('\s','_',feature.props['NAME']+' '+self.lsad_map[feat.props['LSAD']])
+                    curr_place_name=re.sub('\s','_',feature.props['NAME']+' '+self.lsad_map[feature.props['LSAD']])
                     
                 #print('feature.props={0}'.format(feature.props))
         alt_outfile=countyalt_file+'_'+curr_state_name+'_incorporated_and_unincorporated_areas_'+curr_place_name+'_Highlighted_'+curr_state_fips+curr_place+'.svg'
