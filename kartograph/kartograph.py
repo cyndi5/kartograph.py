@@ -30,7 +30,7 @@ class Kartograph(object):
         self.viewCache = {}
         self.unionCache = {}
         self.shapeCache = {}
-        self.lsad_map={ '01': 'Fake Feature', '03': 'City and Borough','04': 'Borough', '05': 'Census Area','06': 'County','07': 'District', '10': 'Island', '12': 'Municipality', '13': 'Municipio', '15': 'Parish'}
+        self.lsad_map={ '01': 'Fake Feature', '03': 'City and Borough','04': 'Borough', '05': 'Census Area','06': 'County','07': 'District', '10': 'Island', '12': 'Municipality', '13': 'Municipio', '15': 'Parish', '21': 'borough', '25': 'city','26': 'county','31':'gore','32':'grant','36':'location','37':'municipality','42':'purchase','43':'town','44': 'township', '47': 'village','53':'city and borough','57':'CDP','CB':'consolidated government (balance)','CN': 'corporation', 'UB': 'unified government (balance)', 'UC': 'urban county (suffix)'}
         self.state_fips={'01': 'Alabama', '02': 'Alaska', '04': 'Arizona',
         '05': 'Arkansas', '06': 'California', '08': 'Colorado', '09': 'Connecticut',
         '10': 'Delaware', '11': 'District of Columbia', '12': 'Florida',
@@ -88,7 +88,7 @@ class Kartograph(object):
                 curr_state_fips=feature.props['STATEFP']
             for feature in layer.features:
                 if 'PLACEFP' in feature.props and feature.props['PLACEFP']==curr_place: # this is highlighting place
-                    curr_place_name=re.sub('\s','_',feature.props['NAME'])
+                    curr_place_name=re.sub('\s','_',feature.props['NAME']+' '+self.lsad_map[feat.props['LSAD']])
                     
                 #print('feature.props={0}'.format(feature.props))
         alt_outfile=countyalt_file+'_'+curr_state_name+'_incorporated_and_unincorporated_areas_'+curr_place_name+'_Highlighted_'+curr_state_fips+curr_place+'.svg'
