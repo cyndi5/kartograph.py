@@ -91,7 +91,7 @@ class Kartograph(object):
                     curr_place_name=re.sub('\s','_',feature.props['NAME']+' '+self.lsad_map[feature.props['LSAD']])
                     
                 #print('feature.props={0}'.format(feature.props))
-        alt_outfile=countyalt_file+'_'+curr_state_name+'_incorporated_and_unincorporated_areas_'+curr_place_name+'_Highlighted_'+curr_state_fips+curr_place+'.svg'
+        alt_outfile=countyalt_file+'_'+curr_state_name+'_Incorporated_and_Unincorporated_areas_'+curr_place_name+'_Highlighted_'+curr_state_fips+curr_place+'.svg'
         #print('alt_outfile={0}'.format(alt_outfile))
         if outfile is None:
            
