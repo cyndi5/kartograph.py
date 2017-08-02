@@ -239,12 +239,25 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
     k=0
     for poly in m_hulls:
         temp_poly_list=[]
-        coords = poly.exterior.coords
-        i = len(coords)-2
-        j=0
-        k=1
-        for i in range(0,len(coords)):
-            
+        coords = poly.exterior.coords[:-1]
+        #i = len(coords)-2
+        #j=0
+        #k=1
+        remove_list=[]
+        for j in range(0,len(coords)):
+            i=(j+len(coords)-1)%(len(coords))
+            k=(j+1)%(len(coords))
+            pt_0=coords[i]
+            pt_1=coords[j]
+            pt_2=coords[k]
+            if (pt_0.x <= pt_1.x and pt_1.x <= pt_2.x) or (pt_0.x >= pt_1.x and pt_1.x >= pt_2.x):
+                if not ((pt_0.y <= pt_1.y and pt_2.y <= pt_1.y) or
+                            (pt_0.y >= pt_1.y and pt_2.y >= pt_1.y)):
+                    remove_list.append(j)
+        for j in remove_list[::-1]:
+            coords.pop(j)
+        temp_poly_list.append(Polygon(coords,{}))
+        
             
     return main_geom
 #    return x_offset, y_offset
