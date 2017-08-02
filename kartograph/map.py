@@ -371,8 +371,6 @@ class Map(object):
         layer=self.layersById[data['sidelayer']]
         #Choose where to position and main side relatively
         self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords_complex(self._projected_bounds, self._side_projected_bounds, main_geom.convex_hull, side_geom.convex_hull, self._position_factor, self)
-
-        main_geom2=get_offset_coords_super_complex(self._projected_bounds, self._side_projected_bounds, main_geom, side_geom, self._position_factor, self)
         
        # self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords(self._projected_bounds, self._side_projected_bounds, self._position_factor)
         
