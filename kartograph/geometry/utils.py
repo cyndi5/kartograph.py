@@ -257,9 +257,12 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
         for j in remove_list[::-1]:
             coords.pop(j)
         temp_poly_list.append(Polygon(coords,{}))
-        
+    if len(temp_poly_list)==1
+        return temp_poly_list[0]
+    else
+        return MultiPolygon(temp_poly_list)
             
-    return main_geom
+#    return main_geom
 #    return x_offset, y_offset
 
 
