@@ -232,34 +232,45 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
     sidelayer = the_map.layersById[data['sidelayer']]
     m_hulls = main_geom#geom_to_bbox(main_geom,min_area=0)
     s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
+    max_area=0
+    best_poly = None
     if not isinstance(main_geom, MultiPolygon):
-        m_hulls = [main_geom]
-    i=l
+       best_poly = main_geom
+    else:
+        for poly in main_geom:
+            if max_area < poly.area:
+                max_area = poly.area
+                best_poly = deepcopy(poly)
+    poly = best_poly
+    i=0
     j=0
     k=0
-    for poly in m_hulls:
-        temp_poly_list=[]
-        coords = poly.exterior.coords[:-1]
-        #i = len(coords)-2
-        #j=0
-        #k=1
-        remove_list=[]
-        for j in range(0,len(coords)):
-            i=(j+len(coords)-1)%(len(coords))
-            k=(j+1)%(len(coords))
-            pt_0=coords[i]
-            pt_1=coords[j]
-            pt_2=coords[k]
-            if (pt_0.x <= pt_1.x and pt_1.x <= pt_2.x) or (pt_0.x >= pt_1.x and pt_1.x >= pt_2.x):
-                if not ((pt_0.y <= pt_1.y and pt_2.y <= pt_1.y) or
-                            (pt_0.y >= pt_1.y and pt_2.y >= pt_1.y)):
-                    remove_list.append(j)
-        for j in remove_list[::-1]:
-            coords.pop(j)
-        temp_poly_list.append(Polygon(coords,{}))
-    if len(temp_poly_list)==1
+    temp_poly_list=[]
+    coords = poly.exterior.coords[:-1]
+    #i = len(coords)-2
+    #j=0
+    #k=1
+    remove_list=[]
+    print 'len(coords)={0}'.format(len(coords))
+    for j in range(0,len(coords)):
+        i=(j+len(coords)-1)%(len(coords))
+        k=(j+1)%(len(coords))
+        pt_0=coords[i]
+        pt_1=coords[j]
+        pt_2=coords[k]
+        if (pt_0[0] <= pt_1[0] and pt_1[0] <= pt_2[0]) or (pt_0[0] >= pt_1[0] and pt_1[0] >= pt_2[0]):
+            if (pt_0[1] <= pt_1[1] and pt_1[1] <= pt_2[1]) or (pt_0[1] >= pt_1[1] and pt_1[1] >= pt_2[1]):
+                remove_list.append(j)
+    for j in range(len(remove_list)-1,-1,-1):
+#        print 'j={0}'.format(remove_list[j])
+
+        coords.pop(remove_list[j])
+#        coords.pop(j)
+    temp_poly_list.append(Polygon(deepcopy(coords),{}))
+    print 'len(coords)={0}'.format(len(coords))
+    if len(temp_poly_list)==1:
         return temp_poly_list[0]
-    else
+    else:
         return MultiPolygon(temp_poly_list)
             
 #    return main_geom
