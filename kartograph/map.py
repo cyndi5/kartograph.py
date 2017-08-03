@@ -371,17 +371,20 @@ class Map(object):
         layer=self.layersById[data['sidelayer']]
         #Choose where to position and main side relatively
         self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords_complex(self._projected_bounds, self._side_projected_bounds, main_geom.convex_hull, side_geom.convex_hull, self._position_factor, self)
+
+
+        temp_geom = get_offset_coords_super_complex(self._projected_bounds, self._side_projected_bounds, main_geom.convex_hull, side_geom.convex_hull, self._position_factor, self)
         
        # self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords(self._projected_bounds, self._side_projected_bounds, self._position_factor)
         
-    #     temp_STATEFP='06'
-    #     layer=self.layersById[data['layer']]
-    #     if len(layer.features)>0:
-    #         temp_STATEFP=layer.features[0].props['STATEFP']
-    #         temp_feat=create_feature(main_geom2,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+         temp_STATEFP='26'
+         layer=self.layersById[data['layer']]
+         if len(layer.features)>0:
+             temp_STATEFP=layer.features[0].props['STATEFP']
+             temp_feat=create_feature(temp_geom,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
     #         #print 'Adding temp_feat={0}'.format(temp_feat)
     # #        layer.features = [temp_feat]
-    #         layer.features.append(temp_feat)
+             layer.features.append(temp_feat)
         # layer=self.layersById[data['sidelayer']]
         # if len(layer.features)>0:
         #     temp_STATEFP=layer.features[0].props['STATEFP']
