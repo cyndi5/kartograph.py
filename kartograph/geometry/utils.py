@@ -234,85 +234,58 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
     s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
     max_area=0
     best_poly = None
+    coord_list=[]
+    poly_list=[]
     if not isinstance(main_geom, MultiPolygon):
-       best_poly = main_geom
+        poly_list = [main_geom]
     else:
-        for poly in main_geom:
-            if max_area < poly.area:
-                max_area = poly.area
-                best_poly = deepcopy(poly)
-    poly = best_poly
-    i=0
-    j=0
-    k=0
-    temp_poly_list=[]
-    coords = poly.exterior.coords[:]
-    #i = len(coords)-2
-    #j=0
-    #k=1
-    remove_list=[]
-    slope_list=[]
-    slope_pos=0
-    print 'len(coords)={0}'.format(len(coords))
-    for j in range(1,len(coords)-1):
-        i=(j+len(coords)-1)%(len(coords))
-        k=(j+1)%(len(coords))
-        pt_0=coords[i]
-        pt_1=coords[j]
-        pt_2=coords[k]
-        temp_slope=0
-        if pt_1[0]==pt_0[0]:
-            temp_slope = float('inf') if pt_1[1] >= pt_1[0] else -float('inf')
-        else:
-            temp_slope = (pt_1[1]-pt_0[1])/(pt_1[0]-pt_0[0])
-        next_slope=0
-        if pt_2[0]==pt_1[0]:
-            next_slope = float('inf') if pt_2[1] >= pt_1[0] else -float('inf')
-        else:
-            next_slope = (pt_2[1]-pt_1[1])/(pt_2[0]-pt_1[0])
-
-        slope_list.append(temp_slope)
-        slope_pos+=1
-#        print 'temp_slope={0}'.format(temp_slope)
-        if (pt_0[0] <= pt_1[0] and pt_1[0] <= pt_2[0]) or (pt_0[0] >= pt_1[0] and pt_1[0] >= pt_2[0]):
-            if (pt_0[1] <= pt_1[1] and pt_1[1] <= pt_2[1]) or (pt_0[1] >= pt_1[1] and pt_1[1] >= pt_2[1]) or (slope_pos>1 and slope_list[slope_pos-2] < slope_list[slope_pos-1] and slope_list[slope_pos-1] < next_slope):
-                remove_list.append(j)
-    j=len(remove_list)-1
-    while j>0:
-        r_j = remove_list[j]
-        r_k=(r_j+1)%(len(coords))
-        print '\nnew loop j={0}\n'.format(j)
-        while j>0 and abs(remove_list[j] - remove_list[j-1])==1:
-            print 'remove_list[j]={0}'.format(remove_list[j])
-            j-=1
-        r_j = remove_list[j]
-        r_i=(r_j+len(coords)-1)%(len(coords))
-        pt_0=coords[r_i]
-#        pt_1=coords[r_j]
-        pt_2=coords[r_k]
-        temp_ptA=Point(pt_0[0],pt_2[1])
-        temp_ptB=Point(pt_2[0],pt_0[1])
-
-        # if temp_ptA.intersects(poly):
-        #     coords[r_j]=(pt_2[0],pt_0[1])
-        # elif temp_ptB.intersects(poly):
-        #     coords[r_j]=(pt_0[1],pt_2[0])
-        # else:
-        #     coords.pop(r_j)
-        for l in range(r_k-1,r_j,-1):
-            print 'Popping {0}'.format(l)
-            coords.pop(l)
-        j-=1
-#        coords.pop(j)
-    temp_poly_list.append(Polygon(deepcopy(coords),{}))
-    print 'len(coords)={0}'.format(len(coords))
-    if len(temp_poly_list)==1:
-        return temp_poly_list[0]
-    else:
-        return MultiPolygon(temp_poly_list)
+        poly_list = main_geom
+    next_poly_list=[]
+    
+    for poly in poly_list:
+        pt_0=poly.exterior.coords[0]
+        for coord in poly.exterior.coords[:-1]:
             
-#    return main_geom
-#    return x_offset, y_offset
+            coord_list.append(coord)
+        curr_poly 
+        
+
+    m_hull_list=coord_list#convex_hull_graham(coord_list)
+    m_hull_list.append(m_hull_list[0])
+    m_hull=Polygon(m_hull_list)
+   # print 'm_hull={0}'.format(m_hull)
+    return m_hull
+
+def convex_hull_graham(points):
+    '''
+    Returns points on convex hull in CCW order according to Graham's scan algorithm. 
+    By Tom Switzer <thomas.switzer@gmail.com>.
+    '''
+    TURN_LEFT, TURN_RIGHT, TURN_NONE = (1, -1, 0)
+
+    def cmp(a, b):
+        return (a > b) - (a < b)
+
+    def turn(p, q, r):
+        return cmp((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]), 0)
+
+    def _keep_left(hull, r):
+        while len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_LEFT:
+            hull.pop()
+        if not len(hull) or hull[-1] != r:
+            hull.append(r)
+        return hull
+
+    points = sorted(points)
+    l = reduce(_keep_left, points, [])
+    u = reduce(_keep_left, reversed(points), [])
+    return l.extend(u[i] for i in range(1, len(u) - 1)) or l
+    
+
+
+def ccw(p1, p2, p3):
+    return (p2[0]-p1[0])*(p3[1]-p1[1]) - (p2[1] - p1[1])*(p3[0] - p1[0])
+
 
 
 
