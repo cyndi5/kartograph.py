@@ -246,25 +246,63 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
     j=0
     k=0
     temp_poly_list=[]
-    coords = poly.exterior.coords[:-1]
+    coords = poly.exterior.coords[:]
     #i = len(coords)-2
     #j=0
     #k=1
     remove_list=[]
+    slope_list=[]
+    slope_pos=0
     print 'len(coords)={0}'.format(len(coords))
-    for j in range(0,len(coords)):
+    for j in range(1,len(coords)-1):
         i=(j+len(coords)-1)%(len(coords))
         k=(j+1)%(len(coords))
         pt_0=coords[i]
         pt_1=coords[j]
         pt_2=coords[k]
-        if (pt_0[0] <= pt_1[0] and pt_1[0] <= pt_2[0]) or (pt_0[0] >= pt_1[0] and pt_1[0] >= pt_2[0]):
-            if (pt_0[1] <= pt_1[1] and pt_1[1] <= pt_2[1]) or (pt_0[1] >= pt_1[1] and pt_1[1] >= pt_2[1]):
-                remove_list.append(j)
-    for j in range(len(remove_list)-1,-1,-1):
-#        print 'j={0}'.format(remove_list[j])
+        temp_slope=0
+        if pt_1[0]==pt_0[0]:
+            temp_slope = float('inf') if pt_1[1] >= pt_1[0] else -float('inf')
+        else:
+            temp_slope = (pt_1[1]-pt_0[1])/(pt_1[0]-pt_0[0])
+        next_slope=0
+        if pt_2[0]==pt_1[0]:
+            next_slope = float('inf') if pt_2[1] >= pt_1[0] else -float('inf')
+        else:
+            next_slope = (pt_2[1]-pt_1[1])/(pt_2[0]-pt_1[0])
 
-        coords.pop(remove_list[j])
+        slope_list.append(temp_slope)
+        slope_pos+=1
+#        print 'temp_slope={0}'.format(temp_slope)
+        if (pt_0[0] <= pt_1[0] and pt_1[0] <= pt_2[0]) or (pt_0[0] >= pt_1[0] and pt_1[0] >= pt_2[0]):
+            if (pt_0[1] <= pt_1[1] and pt_1[1] <= pt_2[1]) or (pt_0[1] >= pt_1[1] and pt_1[1] >= pt_2[1]) or (slope_pos>1 and slope_list[slope_pos-2] < slope_list[slope_pos-1] and slope_list[slope_pos-1] < next_slope):
+                remove_list.append(j)
+    j=len(remove_list)-1
+    while j>0:
+        r_j = remove_list[j]
+        r_k=(r_j+1)%(len(coords))
+        print '\nnew loop j={0}\n'.format(j)
+        while j>0 and abs(remove_list[j] - remove_list[j-1])==1:
+            print 'remove_list[j]={0}'.format(remove_list[j])
+            j-=1
+        r_j = remove_list[j]
+        r_i=(r_j+len(coords)-1)%(len(coords))
+        pt_0=coords[r_i]
+#        pt_1=coords[r_j]
+        pt_2=coords[r_k]
+        temp_ptA=Point(pt_0[0],pt_2[1])
+        temp_ptB=Point(pt_2[0],pt_0[1])
+
+        # if temp_ptA.intersects(poly):
+        #     coords[r_j]=(pt_2[0],pt_0[1])
+        # elif temp_ptB.intersects(poly):
+        #     coords[r_j]=(pt_0[1],pt_2[0])
+        # else:
+        #     coords.pop(r_j)
+        for l in range(r_k-1,r_j,-1):
+            print 'Popping {0}'.format(l)
+            coords.pop(l)
+        j-=1
 #        coords.pop(j)
     temp_poly_list.append(Polygon(deepcopy(coords),{}))
     print 'len(coords)={0}'.format(len(coords))
