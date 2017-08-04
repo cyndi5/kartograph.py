@@ -236,25 +236,41 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
     best_poly = None
     coord_list=[]
     poly_list=[]
+
+    ret_poly_list=[]
+    
     if not isinstance(main_geom, MultiPolygon):
         poly_list = [main_geom]
     else:
         poly_list = main_geom
+    max_area = max(poly.area for poly in poly_list)
+    big_poly_list = [poly for poly in poly_list if poly.area*50000 >= max_area]
     next_poly_list=[]
     
-    for poly in poly_list:
+    for poly in big_poly_list:
         pt_0=poly.exterior.coords[0]
+        #coord_list=[]
         for coord in poly.exterior.coords[:-1]:
-            
             coord_list.append(coord)
-        curr_poly 
+        
+    #curr_poly = Polygon(coord_list).convex_hull
+    #ret_poly_list.append(curr_poly)
+
+    curr_poly = Polygon(convex_hull_jacob(coord_list))
+    ret_poly_list.append(curr_poly)
         
 
-    m_hull_list=coord_list#convex_hull_graham(coord_list)
-    m_hull_list.append(m_hull_list[0])
-    m_hull=Polygon(m_hull_list)
-   # print 'm_hull={0}'.format(m_hull)
-    return m_hull
+    if len(ret_poly_list)>1:
+        return MultiPolygon(ret_poly_list)
+    else:
+        return ret_poly_list[0]
+        
+
+   #  m_hull_list=coord_list#convex_hull_graham(coord_list)
+   #  m_hull_list.append(m_hull_list[0])
+   #  m_hull=Polygon(m_hull_list)
+   # # print 'm_hull={0}'.format(m_hull)
+   #  return m_hull
 
 def convex_hull_graham(points):
     '''
@@ -281,6 +297,82 @@ def convex_hull_graham(points):
     u = reduce(_keep_left, reversed(points), [])
     return l.extend(u[i] for i in range(1, len(u) - 1)) or l
     
+def convex_hull_jacob(points):
+    '''
+    Returns points on convex hull in CCW order according to Graham's scan algorithm. 
+    By Jacob Alperin-Sheriff
+    '''
+    from math import atan2, sqrt, pi
+    TURN_LEFT, TURN_RIGHT, TURN_NONE = (1, -1, 0)
+
+    
+    def length(a,b):
+        return sqrt((a[1]-b[1])**2+(a[0]-b[0])**2)
+
+
+    def cmp(a, b):
+        return (a > b) - (a < b)
+
+    def turn(p, q, r):
+        return cmp((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]), 0)
+
+    def turn_real(p, q, r):
+        return ((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]))/(length(p,q)*length(q,r))
+
+    def turn_angle(p,q,r):
+        return atan2(r[1]-q[1],r[0]-q[0])-atan2(q[1]-p[1],q[0]-p[0])
+
+    
+    def _keep_right(hull, r):
+        while len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_RIGHT:
+            hull.pop()
+        if not len(hull) or hull[-1] != r:
+            hull.append(r)
+        return hull
+
+    def _is_bad(hull, r):
+        not_left_val = len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_LEFT
+        ang = pi
+        if len(hull)>=3:
+            ang = turn_angle(hull[-2],hull[-1],r)
+            # if ang >= 2*pi:
+            #     ang -= 2*pi
+            # if ang < 0:
+            #     ang += 2*pi
+        bad_not_left_val = (len(hull)<3 or abs(turn_real(hull[-2],hull[-1],r)) <= .005 or (ang <= 0 and ang <= -pi/32) or (turn_angle(hull[-2],hull[-1], r) <= 9*pi / 8 and turn_angle(hull[-2],hull[-1], r) >= pi)  or turn(hull[-3],hull[-2],hull[-1]) != TURN_LEFT )
+        if not_left_val and not bad_not_left_val and ang < pi:
+            print '({0};{1};{2}) {3} '.format(hull[-2], hull[-1], r,turn_angle(hull[-2],hull[-1],r))
+        return not_left_val and bad_not_left_val
+    
+    def _keep_left(hull, r):
+        # while len(hull) > 2 and turn(hull[-3], hull[-2], hull[-1]) != TURN_LEFT and turn(hull[-2], hull[-1], r) != TURN_LEFT:
+        #       print 'Popping, len={0}'.format(len(hull))
+        #       temp1 = hull.pop()
+        #       hull.pop()
+        #       hull.append(temp1)
+        #       print 'Done popping, len={0}'.format(len(hull))
+        
+        while _is_bad(hull, r):
+            hull.pop()
+        if not len(hull) or hull[-1] != r:
+            hull.append(r)
+        return hull
+    pt0 = min(points, key = lambda pt: pt[0])
+    points.remove(pt0)
+#    pt_array = [pt0]
+    points = sorted(points, key = lambda pt: atan2(pt[1] - pt0[1],pt[0] - pt0[0] ))
+    points.insert(0,pt0)
+    # = reduce(_keep_left, points, [])
+    
+    l = reduce(_keep_left, points, [])
+
+#    for coord in points:
+#        print('{0}'.format(coord))  
+
+    print('len(l)={0}'.format(len(l)))
+
+    return l
+    #return l.extend(u[i] for i in range(1, len(u) - 1)) or l
 
 
 def ccw(p1, p2, p3):

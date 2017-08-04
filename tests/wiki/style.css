@@ -34,10 +34,11 @@ fill: #ffffff;
   fill: #e8e2b7;
 #   opacity: 0.2;
 }
+
 #statelayer[PLACEFP=00000]
 {
   fill: none;
-  stroke: #009900;
+  stroke: #007700;
   stroke-width: 1px;
 #   opacity: 0.2;
 }
