@@ -38,8 +38,9 @@ fill: #ffffff;
 #statelayer[PLACEFP=00000]
 {
   fill: none;
-  stroke: #007700;
+  stroke: #006000;
   stroke-width: 1px;
+  opacity: 1.0;
 #   opacity: 0.2;
 }
 
