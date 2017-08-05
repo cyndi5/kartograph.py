@@ -72,8 +72,8 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
    },
      "export":
      {
-       "width": 1500,
-       "height": 1500,
+       "width": 500,
+       "height": 500,
        "padding": 10
       }
     }
