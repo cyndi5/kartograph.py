@@ -209,20 +209,6 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
             best_out_point = deepcopy(seg.outPoint)
             
     # Deal with checking how good it is offset 
-
-    # temp_STATEFP=sidelayer.features[0].props['STATEFP']
-    # temp_feat=create_feature(best_my_box,{'NAME': 'Side Box', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-    # sidelayer.options['specialstyle']+='#countylayer[PLACEFP=00000] { fill: none; }\n'
-    # sidelayer.features.append(temp_feat)
-
-    # statelayer = the_map.layersById['statelayer']
-    # temp_feat = create_feature(best_out_point.buffer(dist_param/4.), {'NAME': 'Place Point', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '99999'})
-    # temp_feat2 = create_feature(LineString([(best_pointA.x,best_pointA.y), (best_pointB.x,best_pointB.y)] ), {'NAME': 'Best Seg', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '99998'})
-    # statelayer.options['specialstyle']=''
-    # statelayer.options['specialstyle']+='#statelayer[PLACEFP=99999]\n{\n\tfill: black;\n}\n'
-    # statelayer.options['specialstyle']+='#statelayer[PLACEFP=99998]\n{\n\tstroke: red;\nstroke-width: 5px;\n}\n'
-    # statelayer.features.append(temp_feat)
-    # statelayer.features.append(temp_feat2)
     
     return x_offset, y_offset
 
@@ -230,7 +216,7 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
     opts = the_map.options
     data = opts['bounds']['data']
     sidelayer = the_map.layersById[data['sidelayer']]
-    m_hulls = main_geom#geom_to_bbox(main_geom,min_area=0)
+    m_hull = main_geom.convex_hull#geom_to_bbox(main_geom,min_area=0)
     s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
     max_area=0
     best_poly = None
@@ -279,6 +265,10 @@ def convex_hull_graham(points):
     '''
     TURN_LEFT, TURN_RIGHT, TURN_NONE = (1, -1, 0)
 
+    MIN_DIFF=1e-7
+    def near_eq(a,b):
+        return abs(a-b) <= MIN_DIFF
+    
     def cmp(a, b):
         return (a > b) - (a < b)
 
@@ -303,9 +293,54 @@ def convex_hull_jacob(points):
     By Jacob Alperin-Sheriff
     '''
     from math import atan2, sqrt, pi
+    from bisect import bisect_left, bisect, bisect_right
     TURN_LEFT, TURN_RIGHT, TURN_NONE = (1, -1, 0)
 
-    
+    MIN_DIFF=1e-7
+    def near_eq(a,b):
+        return abs(a-b) <= MIN_DIFF
+
+    def near_lt(a,b):
+        return a + MIN_DIFF <= b
+
+    def near_gt(a,b):
+        return a - MIN_DIFF >= b
+
+    def index(a, x):
+        'Locate the leftmost value exactly equal to x'
+        i = bisect_left(a, x)
+        if i != len(a) and a[i] == x:
+            return i
+        raise ValueError
+
+    def find_lt(a, x):
+        'Find index of rightmost value less than x'
+        i = bisect_left(a, x)
+        if i:
+            return i-1
+        raise ValueError
+
+    def find_le(a, x):
+        'Find index of rightmost value less than or equal to x'
+        i = bisect_right(a, x)
+        if i:
+            return i-1
+        raise ValueError
+
+    def find_gt(a, x):
+        'Find index of leftmost value greater than x'
+        i = bisect_right(a, x)
+        if i != len(a):
+            return i
+        raise ValueError
+
+    def find_ge(a, x):
+        'Find index of leftmost item greater than or equal to x'
+        i = bisect_left(a, x)
+        if i != len(a):
+            return i
+        raise ValueError
+        
     def length(a,b):
         return sqrt((a[1]-b[1])**2+(a[0]-b[0])**2)
 
@@ -322,6 +357,10 @@ def convex_hull_jacob(points):
     def turn_angle(p,q,r):
         return atan2(r[1]-q[1],r[0]-q[0])-atan2(q[1]-p[1],q[0]-p[0])
 
+    def print_angles(points):
+        pt0 = points[0]
+        for i in range(0,len(points)-1):
+            print('({0: 8.2f}, {1: 8.2f}),({2: 8.2f},{3: 8.2f}) = {4: 8.2f}'.format(points[i][0],points[i][1],points[i+1][0],points[i+1][1], atan2(points[i+1][1]-points[i][1],points[i+1][0]-points[i][0]) )  )
     
     def _keep_right(hull, r):
         while len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_RIGHT:
@@ -340,9 +379,7 @@ def convex_hull_jacob(points):
             # if ang < 0:
             #     ang += 2*pi
         bad_not_left_val = (len(hull)<3 or abs(turn_real(hull[-2],hull[-1],r)) <= .005 or (ang <= 0 and ang <= -pi/32) or (turn_angle(hull[-2],hull[-1], r) <= 9*pi / 8 and turn_angle(hull[-2],hull[-1], r) >= pi)  or turn(hull[-3],hull[-2],hull[-1]) != TURN_LEFT )
-        if not_left_val and not bad_not_left_val and ang < pi:
-            print '({0};{1};{2}) {3} '.format(hull[-2], hull[-1], r,turn_angle(hull[-2],hull[-1],r))
-        return not_left_val and bad_not_left_val
+        return not_left_val# and bad_not_left_val
     
     def _keep_left(hull, r):
         # while len(hull) > 2 and turn(hull[-3], hull[-2], hull[-1]) != TURN_LEFT and turn(hull[-2], hull[-1], r) != TURN_LEFT:
@@ -357,21 +394,94 @@ def convex_hull_jacob(points):
         if not len(hull) or hull[-1] != r:
             hull.append(r)
         return hull
+
+    def get_min_y(keys, to_search, ptA, ptB):
+        min_y=max(ptA[1],ptB[1])
+        i = find_gt(keys,min(ptA[0],ptB[0]))
+        print('Begin: to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_y))
+        while i < len(to_search) and to_search[i][0] <= max(ptA[0],ptB[0]) and to_search[i] != ptA and to_search[i] != ptB:
+            if to_search[i][1] < min_y:
+                print('to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_y))
+                min_y=to_search[i][1]
+            i=i+1
+        print('min_y={0}, ptA={1}, ptB={2}'.format(min_y,ptA,ptB))
+        return min_y
+
+    def get_max_y(keys,to_search, ptA, ptB):
+        max_y=min(ptA[1],ptB[1])
+        i = find_gt(keys,min(ptA[0],ptB[0]))
+        while i < len(to_search) and to_search[i][0] <= max(ptA[0],ptB[0]) and to_search[i] != ptA and to_search[i] != ptB:
+            if to_search[i][1] > max_y:
+                max_y=to_search[i][1]
+            i=i+1
+        return max_y
+
+    def _line_angle(a,b):
+        return atan2(b[1]-a[1],b[0]-a[0])
+
+    def get_x_intersection(y,ptA,ptB):
+        if ptA[0]==ptB[0]:
+            raise ValueError
+        slope = (ptB[1]-ptA[1])/(ptB[0]-ptA[0])
+        intercept = ptB[1]-slope*ptB[0]
+        return y/slope - intercept/slope
+
+    def get_y_intersection(x,ptA,ptB):
+        if ptA[0]==ptB[0]:
+            raise ValueError
+        slope = (ptB[1]-ptA[1])/(ptB[0]-ptA[0])
+        intercept = ptB[1]-slope*ptB[0]
+        return x*slope + intercept
+
+    
+    def _add_hull(points, hull):
+        ret_hull=[]
+        keys = [pt[0] for pt in points]
+        for i in range(0,len(hull)):
+            ang = _line_angle(hull[i],hull[(i+1) % len(hull)])
+            ret_hull.append(hull[i])
+            if near_lt(0,ang) and near_lt(ang,pi/2):
+                temp_y=get_min_y(keys, points,hull[i],hull[(i+1) % len(hull)])
+                temp_pt1=(hull[i][0],temp_y)
+                temp_pt2 = (get_x_intersection(temp_y,hull[i],hull[(i+1) % len(hull)]),temp_y)
+            elif near_lt(-pi/2,ang) and near_lt(ang,0):
+                continue
+#                temp_y=get_min_y(keys, points,hull[i],hull[(i+1) % len(hull)])
+#                temp_pt2=(hull[i+1][0],temp_y)
+#                temp_pt1 = (get_x_intersection(temp_y,hull[i],hull[(i+1) % len(hull)]),temp_y)
+            elif near_lt(-pi,ang) and near_lt(ang,-pi/2):
+                temp_y=get_max_y(keys, points,hull[i],hull[(i+1) % len(hull)])
+                temp_pt1=(hull[i][0],temp_y)
+                temp_pt2 = (get_x_intersection(temp_y,hull[i],hull[(i+1) % len(hull)]),temp_y)
+            # elif near_lt(pi/2,ang) or (near_lt(-pi/2,ang) and near_lt(ang,0)):
+            #     temp_y=get_max_y(keys, points,points[i],points[i+1])
+            else:
+                continue
+            ret_hull.append(temp_pt1)
+            ret_hull.append(temp_pt2)
+
+        return ret_hull
+    
     pt0 = min(points, key = lambda pt: pt[0])
     points.remove(pt0)
 #    pt_array = [pt0]
     points = sorted(points, key = lambda pt: atan2(pt[1] - pt0[1],pt[0] - pt0[0] ))
     points.insert(0,pt0)
+
     # = reduce(_keep_left, points, [])
     
     l = reduce(_keep_left, points, [])
+#    print('len(l)={0}'.format(len(l)))
 
-#    for coord in points:
-#        print('{0}'.format(coord))  
-
-    print('len(l)={0}'.format(len(l)))
-
-    return l
+#    print_angles(l)
+   # pt0 = min(points, key = lambda pt: pt[0])
+   # points.remove(pt0)
+#    pt_array = [pt0]
+    points = sorted(points, key = lambda pt: pt[0])
+   # points.insert(0,pt0)
+    ret_hull = _add_hull(points,l)
+    print('len(points)={0}'.format(len(points)))
+    return ret_hull
     #return l.extend(u[i] for i in range(1, len(u) - 1)) or l
 
 
