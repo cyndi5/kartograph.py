@@ -397,25 +397,49 @@ def convex_hull_jacob(points):
 
     def get_min_y(keys, to_search, ptA, ptB):
         min_y=max(ptA[1],ptB[1])
-        i = find_gt(keys,min(ptA[0],ptB[0]))
-        print('Begin: to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_y))
+        i = find_gt(keys,min(ptA[0],ptB[0]))    
+        print('Begin (get_min_y): to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_y))
         while i < len(to_search) and to_search[i][0] <= max(ptA[0],ptB[0]) and to_search[i] != ptA and to_search[i] != ptB:
-            if to_search[i][1] < min_y:
-                print('to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_y))
+            if to_search[i][1] < min_y and to_search[i][1] > min(ptA[1],ptB[1]):
+                print('min_y-to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_y))
                 min_y=to_search[i][1]
             i=i+1
         print('min_y={0}, ptA={1}, ptB={2}'.format(min_y,ptA,ptB))
         return min_y
 
+    def get_min_x(keys, to_search, ptA, ptB):
+        min_x=max(ptA[0],ptB[0])
+        i = find_gt(keys,min(ptA[1],ptB[1]))
+        print('Begin (get_min_x): to_search[{0}]=({1:.4f}, {2:.4f}), min_x={3}'.format(i,to_search[i][0],to_search[i][1],min_x))
+
+        while i < len(to_search) and to_search[i][1] <= max(ptA[1],ptB[1]) and to_search[i] != ptA and to_search[i] != ptB:
+            if to_search[i][0] < min_x and to_search[i][0] > min(ptA[0],ptB[0]):
+                print('min_x-to_search[{0}]=({1:.4f}, {2:.4f}), min_x={3}'.format(i,to_search[i][0],to_search[i][1],min_x))
+
+                min_x=to_search[i][0]
+            i=i+1
+        print('min_x={0}, ptA={1}, ptB={2}'.format(min_x,ptA,ptB))
+
+        return min_x
+
     def get_max_y(keys,to_search, ptA, ptB):
         max_y=min(ptA[1],ptB[1])
         i = find_gt(keys,min(ptA[0],ptB[0]))
         while i < len(to_search) and to_search[i][0] <= max(ptA[0],ptB[0]) and to_search[i] != ptA and to_search[i] != ptB:
-            if to_search[i][1] > max_y:
+            if to_search[i][1] > max_y and to_search[i][1] < max(ptA[1],ptB[1]):
                 max_y=to_search[i][1]
             i=i+1
         return max_y
 
+    def get_max_x(keys,to_search, ptA, ptB):
+        max_x=min(ptA[0],ptB[0])
+        i = find_gt(keys,min(ptA[1],ptB[1]))
+        while i < len(to_search) and to_search[i][1] <= max(ptA[1],ptB[1]) and to_search[i] != ptA and to_search[i] != ptB:
+            if to_search[i][0] > max_x and to_search[i][0] < max(ptA[0],ptB[0]):
+                max_x=to_search[i][0]
+            i=i+1
+        return max_x
+    
     def _line_angle(a,b):
         return atan2(b[1]-a[1],b[0]-a[0])
 
@@ -436,27 +460,54 @@ def convex_hull_jacob(points):
     
     def _add_hull(points, hull):
         ret_hull=[]
-        keys = [pt[0] for pt in points]
+        x_points = points
+        y_points = sorted(deepcopy(points), key = lambda pt: pt[1])
+        
+        x_keys = [pt[0] for pt in points]
+        y_keys = [pt[1] for pt in y_points]
         for i in range(0,len(hull)):
-            ang = _line_angle(hull[i],hull[(i+1) % len(hull)])
+            j=(i+1) % len(hull)
+            ang = _line_angle(hull[i],hull[j])
             ret_hull.append(hull[i])
             if near_lt(0,ang) and near_lt(ang,pi/2):
-                temp_y=get_min_y(keys, points,hull[i],hull[(i+1) % len(hull)])
-                temp_pt1=(hull[i][0],temp_y)
-                temp_pt2 = (get_x_intersection(temp_y,hull[i],hull[(i+1) % len(hull)]),temp_y)
+                temp_y=get_min_y(x_keys, x_points,hull[i],hull[j])
+                temp_pta1=(hull[i][0],temp_y)
+                temp_pta2 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
+                
+                temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
+                temp_ptb2 = (temp_x, hull[j][1])
+                temp_ptb1 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
             elif near_lt(-pi/2,ang) and near_lt(ang,0):
-                continue
-#                temp_y=get_min_y(keys, points,hull[i],hull[(i+1) % len(hull)])
-#                temp_pt2=(hull[i+1][0],temp_y)
-#                temp_pt1 = (get_x_intersection(temp_y,hull[i],hull[(i+1) % len(hull)]),temp_y)
+                temp_y=get_min_y(x_keys, x_points,hull[i],hull[j])
+                temp_pta2=(hull[j][0],temp_y)
+                temp_pta1 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
+
+                temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
+                temp_ptb1=(temp_x, hull[j][1])
+                temp_ptb2 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
+#                temp_ptb1=temp_ptb2 = (0,0)
+
+
             elif near_lt(-pi,ang) and near_lt(ang,-pi/2):
-                temp_y=get_max_y(keys, points,hull[i],hull[(i+1) % len(hull)])
-                temp_pt1=(hull[i][0],temp_y)
-                temp_pt2 = (get_x_intersection(temp_y,hull[i],hull[(i+1) % len(hull)]),temp_y)
-            # elif near_lt(pi/2,ang) or (near_lt(-pi/2,ang) and near_lt(ang,0)):
-            #     temp_y=get_max_y(keys, points,points[i],points[i+1])
+                temp_y=get_max_y(x_keys, x_points,hull[i],hull[j])
+                temp_pta1=(hull[i][0],temp_y)
+                temp_pta2 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
+                temp_ptb1=temp_ptb2 = (0,0)
+                
+            elif near_lt(pi/2,ang) and near_lt(ang,pi):
+                continue
+                temp_y=get_max_y(x_keys, x_points,hull[i],hull[j])
+                temp_pta2=(hull[j][0],temp_y)
+                temp_pta1 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
+                temp_ptb1=temp_ptb2 = (0,0)
+
             else:
                 continue
+
+            is_a=length(temp_pta1,temp_pta2)> length(temp_ptb1, temp_ptb2)
+            temp_pt1 = temp_pta1 if is_a else temp_ptb1
+            temp_pt2 = temp_pta2 if is_a else temp_ptb2
+
             ret_hull.append(temp_pt1)
             ret_hull.append(temp_pt2)
 

@@ -26,8 +26,11 @@ do
 	    echo 's, ' $1 $2
             sarg="$2"; shift; 
             shift;;
-	-y|-x|-m)
+	-y)
 	    yarg="$2"; shift;
+	    shift;;
+	-m|-x)
+	    sflags="$1 $2 ${sflags}"; shift;
 	    shift;;
         --)
             shift; break;;
