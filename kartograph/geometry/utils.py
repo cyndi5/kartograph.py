@@ -459,6 +459,7 @@ def convex_hull_jacob(points):
 
     
     def _add_hull(points, hull):
+        # Need to check if two points on convex hull are on same simple polygon or not??
         ret_hull=[]
         x_points = points
         y_points = sorted(deepcopy(points), key = lambda pt: pt[1])
@@ -485,7 +486,7 @@ def convex_hull_jacob(points):
                 temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
                 temp_ptb1=(temp_x, hull[j][1])
                 temp_ptb2 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
-#                temp_ptb1=temp_ptb2 = (0,0)
+                temp_ptb1=temp_ptb2 = (0,0)
 
 
             elif near_lt(-pi,ang) and near_lt(ang,-pi/2):
