@@ -242,7 +242,9 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
     #curr_poly = Polygon(coord_list).convex_hull
     #ret_poly_list.append(curr_poly)
 
-    curr_poly = Polygon(convex_hull_jacob(coord_list))
+    curr_poly = Polygon(convex_hull_jacob(coord_list, big_poly_list))
+
+    print 'Bounds(curr_poly)={0}'.format(curr_poly.bounds)
     ret_poly_list.append(curr_poly)
         
 
@@ -287,7 +289,7 @@ def convex_hull_graham(points):
     u = reduce(_keep_left, reversed(points), [])
     return l.extend(u[i] for i in range(1, len(u) - 1)) or l
     
-def convex_hull_jacob(points):
+def convex_hull_jacob(points, big_poly_list):
     '''
     Returns points on convex hull in CCW order according to Graham's scan algorithm. 
     By Jacob Alperin-Sheriff
@@ -306,6 +308,12 @@ def convex_hull_jacob(points):
     def near_gt(a,b):
         return a - MIN_DIFF >= b
 
+    def near_le(a,b):
+        return not near_gt(a,b)
+
+    def near_ge(a,b):
+        return not near_lt(a,b)
+    
     def index(a, x):
         'Locate the leftmost value exactly equal to x'
         i = bisect_left(a, x)
@@ -350,6 +358,13 @@ def convex_hull_jacob(points):
 
     def turn(p, q, r):
         return cmp((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]), 0)
+    
+    def _keep_left(hull, r):
+        while len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_LEFT:
+            hull.pop()
+        if not len(hull) or hull[-1] != r:
+            hull.append(r)
+        return hull
 
     def turn_real(p, q, r):
         return ((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]))/(length(p,q)*length(q,r))
@@ -357,68 +372,52 @@ def convex_hull_jacob(points):
     def turn_angle(p,q,r):
         return atan2(r[1]-q[1],r[0]-q[0])-atan2(q[1]-p[1],q[0]-p[0])
 
+    def ptval_min_y(ptA, ptB, to_eval):
+        y_int = get_y_intersection(to_eval[0], ptA,ptB)
+        x_int = get_x_intersection(to_eval[1],ptA,ptB)
+        return abs(y_int - to_eval[1])*abs(x_int-to_eval[0])
+        
+        
+    
     def print_angles(points):
         pt0 = points[0]
         for i in range(0,len(points)-1):
             print('({0: 8.2f}, {1: 8.2f}),({2: 8.2f},{3: 8.2f}) = {4: 8.2f}'.format(points[i][0],points[i][1],points[i+1][0],points[i+1][1], atan2(points[i+1][1]-points[i][1],points[i+1][0]-points[i][0]) )  )
     
-    def _keep_right(hull, r):
-        while len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_RIGHT:
-            hull.pop()
-        if not len(hull) or hull[-1] != r:
-            hull.append(r)
-        return hull
-
-    def _is_bad(hull, r):
-        not_left_val = len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_LEFT
-        ang = pi
-        if len(hull)>=3:
-            ang = turn_angle(hull[-2],hull[-1],r)
-            # if ang >= 2*pi:
-            #     ang -= 2*pi
-            # if ang < 0:
-            #     ang += 2*pi
-        bad_not_left_val = (len(hull)<3 or abs(turn_real(hull[-2],hull[-1],r)) <= .005 or (ang <= 0 and ang <= -pi/32) or (turn_angle(hull[-2],hull[-1], r) <= 9*pi / 8 and turn_angle(hull[-2],hull[-1], r) >= pi)  or turn(hull[-3],hull[-2],hull[-1]) != TURN_LEFT )
-        return not_left_val# and bad_not_left_val
-    
-    def _keep_left(hull, r):
-        # while len(hull) > 2 and turn(hull[-3], hull[-2], hull[-1]) != TURN_LEFT and turn(hull[-2], hull[-1], r) != TURN_LEFT:
-        #       print 'Popping, len={0}'.format(len(hull))
-        #       temp1 = hull.pop()
-        #       hull.pop()
-        #       hull.append(temp1)
-        #       print 'Done popping, len={0}'.format(len(hull))
-        
-        while _is_bad(hull, r):
-            hull.pop()
-        if not len(hull) or hull[-1] != r:
-            hull.append(r)
-        return hull
-
     def get_min_y(keys, to_search, ptA, ptB):
-        min_y=max(ptA[1],ptB[1])
-        i = find_gt(keys,min(ptA[0],ptB[0]))    
-        print('Begin (get_min_y): to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_y))
-        while i < len(to_search) and to_search[i][0] <= max(ptA[0],ptB[0]) and to_search[i] != ptA and to_search[i] != ptB:
-            if to_search[i][1] < min_y and to_search[i][1] > min(ptA[1],ptB[1]):
-                print('min_y-to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_y))
-                min_y=to_search[i][1]
-            i=i+1
-        print('min_y={0}, ptA={1}, ptB={2}'.format(min_y,ptA,ptB))
-        return min_y
+        lo = find_gt(keys,min(ptA[0],ptB[0]))
+        hi= find_lt(keys,max(ptA[0],ptB[0]))
+        mid_x = (ptA[0]+ptB[0])/2
+        min_y = max(ptA[1],ptB[1])
+        best_pt = (ptB[0],ptB[1])
+        for i in range(hi,lo-1,-1):
+            if to_search[i][1] < min_y:
+                if ptval_min_y(ptA,ptB,to_search[i]) > ptval_min_y(ptA, ptB,best_pt):
+                    best_pt = to_search[i]
+                min_y = to_search[i][1]
+        return best_pt
+    
+        # print('Begin (get_min_y): to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_pt[1]))
+        # while lo < len(to_search) and to_search[lo][0] <= max(ptA[0],ptB[0]) and to_search[lo] != ptA and to_search[lo] != ptB:
+        #     if to_search[lo][1] < min_pt[1] and to_search[lo][1] > min(ptA[1],ptB[1]):
+        #         print('min_y-to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_pt[1]))
+        #         min_pt=to_search[lo]
+        #     lo=lo+1
+        # print('min_y={0}, ptA={1}, ptB={2}'.format(min_pt[1],ptA,ptB))
+        # return min_pt
 
     def get_min_x(keys, to_search, ptA, ptB):
         min_x=max(ptA[0],ptB[0])
         i = find_gt(keys,min(ptA[1],ptB[1]))
-        print('Begin (get_min_x): to_search[{0}]=({1:.4f}, {2:.4f}), min_x={3}'.format(i,to_search[i][0],to_search[i][1],min_x))
+        # print('Begin (get_min_x): to_search[{0}]=({1:.4f}, {2:.4f}), min_x={3}'.format(i,to_search[i][0],to_search[i][1],min_x))
 
         while i < len(to_search) and to_search[i][1] <= max(ptA[1],ptB[1]) and to_search[i] != ptA and to_search[i] != ptB:
             if to_search[i][0] < min_x and to_search[i][0] > min(ptA[0],ptB[0]):
-                print('min_x-to_search[{0}]=({1:.4f}, {2:.4f}), min_x={3}'.format(i,to_search[i][0],to_search[i][1],min_x))
+                # print('min_x-to_search[{0}]=({1:.4f}, {2:.4f}), min_x={3}'.format(i,to_search[i][0],to_search[i][1],min_x))
 
                 min_x=to_search[i][0]
             i=i+1
-        print('min_x={0}, ptA={1}, ptB={2}'.format(min_x,ptA,ptB))
+        # print('min_x={0}, ptA={1}, ptB={2}'.format(min_x,ptA,ptB))
 
         return min_x
 
@@ -458,7 +457,7 @@ def convex_hull_jacob(points):
         return x*slope + intercept
 
     
-    def _add_hull(points, hull):
+    def _add_hull(points, hull, indiv_hulls):
         # Need to check if two points on convex hull are on same simple polygon or not??
         ret_hull=[]
         x_points = points
@@ -470,47 +469,73 @@ def convex_hull_jacob(points):
             j=(i+1) % len(hull)
             ang = _line_angle(hull[i],hull[j])
             ret_hull.append(hull[i])
+            temp_pta1 = temp_pta2 = temp_pta3 = temp_ptb1 = temp_ptb2 = temp_ptb3 = None
             if near_lt(0,ang) and near_lt(ang,pi/2):
-                temp_y=get_min_y(x_keys, x_points,hull[i],hull[j])
-                temp_pta1=(hull[i][0],temp_y)
-                temp_pta2 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
+                min_pt=get_min_y(x_keys, x_points,hull[i],hull[j])
+
+                if near_le(min_pt[0],hull[i][0]):
+                    temp_pta1=(hull[i][0],min_pt[1])
+                    temp_pta2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                else:
+                    temp_pta1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
+                    temp_pta2 = (min_pt[0], min_pt[1])
+                    temp_pta3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    
+                    print('hull[i]={0}, temp_pta1={1},temp_pta2={2},temp_pta3={3},hull[j]={4}'.format(hull[i],temp_pta1, temp_pta2, temp_pta3, hull[j]))
+#                temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
+
+#                temp_ptb2 = (temp_x, hull[j][1])
+#                temp_ptb1 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
                 
-                temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
-                temp_ptb2 = (temp_x, hull[j][1])
-                temp_ptb1 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
+                
             elif near_lt(-pi/2,ang) and near_lt(ang,0):
-                temp_y=get_min_y(x_keys, x_points,hull[i],hull[j])
+                temp_y=get_min_y(x_keys, x_points,hull[i],hull[j])[1]
                 temp_pta2=(hull[j][0],temp_y)
                 temp_pta1 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
 
                 temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
                 temp_ptb1=(temp_x, hull[j][1])
                 temp_ptb2 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
-                temp_ptb1=temp_ptb2 = (0,0)
 
 
             elif near_lt(-pi,ang) and near_lt(ang,-pi/2):
                 temp_y=get_max_y(x_keys, x_points,hull[i],hull[j])
                 temp_pta1=(hull[i][0],temp_y)
                 temp_pta2 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
-                temp_ptb1=temp_ptb2 = (0,0)
+
+
+                temp_x=get_min_x(y_keys, y_points,hull[i],hull[j])
+                temp_ptb2=(temp_x, hull[j][1])
+                temp_ptb1 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
                 
             elif near_lt(pi/2,ang) and near_lt(ang,pi):
                 continue
                 temp_y=get_max_y(x_keys, x_points,hull[i],hull[j])
                 temp_pta2=(hull[j][0],temp_y)
                 temp_pta1 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
-                temp_ptb1=temp_ptb2 = (0,0)
+
+                temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
+                temp_ptb2 = (temp_x, hull[j][1])
+                temp_ptb1 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
 
             else:
                 continue
 
-            is_a=length(temp_pta1,temp_pta2)> length(temp_ptb1, temp_ptb2)
-            temp_pt1 = temp_pta1 if is_a else temp_ptb1
-            temp_pt2 = temp_pta2 if is_a else temp_ptb2
-
+            # if temp_pta3 is None or temp_ptb3 is None:
+            #     is_a=length(hull[i],temp_pta1)+length(temp_pta1,temp_pta2)+length(temp_pta2,hull[j])>length(hull[i],temp_ptb1)+length(temp_ptb1, temp_ptb2)+length(temp_ptb2,hull[j])
+            # else:
+            #     is_a=length(hull[i],temp_pta1)+length(temp_pta1,temp_pta2)+length(temp_pta2,temp_pta3)+length(temp_pta3,hull[j])>length(hull[i],temp_ptb1)+length(temp_ptb1, temp_ptb2)+length(temp_ptb2, temp_ptb3)+length(temp_ptb3,hull[j])
+            
+            temp_pt1 = temp_pta1# if is_a else temp_ptb1
+            temp_pt2 = temp_pta2# if is_a else temp_ptb2
+            temp_pt3 = None
+            if temp_pta3 is not None:# and temp_ptb3 is not None:
+                temp_pt3 = temp_pta3 #if is_a else temp_ptb3
+            
             ret_hull.append(temp_pt1)
             ret_hull.append(temp_pt2)
+            if temp_pt3 is not None:
+                ret_hull.append(temp_pt3)
 
         return ret_hull
     
@@ -530,8 +555,8 @@ def convex_hull_jacob(points):
    # points.remove(pt0)
 #    pt_array = [pt0]
     points = sorted(points, key = lambda pt: pt[0])
-   # points.insert(0,pt0)
-    ret_hull = _add_hull(points,l)
+    big_hull_list = [p.exterior.coords[:-1] for p in big_poly_list]
+    ret_hull = _add_hull(points,l, big_hull_list)
     print('len(points)={0}'.format(len(points)))
     return ret_hull
     #return l.extend(u[i] for i in range(1, len(u) - 1)) or l

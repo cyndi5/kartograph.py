@@ -68,7 +68,7 @@ def make_this_place(K, css, curr_year, curr_state, curr_place, cache_view, show_
             "min-area": 0.000
             },
         "scale-sidelayer": "auto",
-        "scale-sidelayer-factor": 1.25
+        "scale-sidelayer-factor": 1.5
    },
      "export":
      {
