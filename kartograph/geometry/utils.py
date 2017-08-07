@@ -212,12 +212,12 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
     
     return x_offset, y_offset
 
-def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, position_factor, the_map):
+def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
     opts = the_map.options
     data = opts['bounds']['data']
     sidelayer = the_map.layersById[data['sidelayer']]
-    m_hull = main_geom.convex_hull#geom_to_bbox(main_geom,min_area=0)
-    s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
+    m_hull = geom.convex_hull#geom_to_bbox(geom,min_area=0)
+ #   s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
     max_area=0
     best_poly = None
     coord_list=[]
@@ -225,10 +225,10 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
 
     ret_poly_list=[]
     
-    if not isinstance(main_geom, MultiPolygon):
-        poly_list = [main_geom]
+    if not isinstance(geom, MultiPolygon):
+        poly_list = [geom]
     else:
-        poly_list = main_geom
+        poly_list = geom
     max_area = max(poly.area for poly in poly_list)
     big_poly_list = [poly for poly in poly_list if poly.area*50000 >= max_area]
     next_poly_list=[]
@@ -252,13 +252,7 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, main_geom, side_geom, po
         return MultiPolygon(ret_poly_list)
     else:
         return ret_poly_list[0]
-        
 
-   #  m_hull_list=coord_list#convex_hull_graham(coord_list)
-   #  m_hull_list.append(m_hull_list[0])
-   #  m_hull=Polygon(m_hull_list)
-   # # print 'm_hull={0}'.format(m_hull)
-   #  return m_hull
 
 def convex_hull_graham(points):
     '''
@@ -372,7 +366,7 @@ def convex_hull_jacob(points, big_poly_list):
     def turn_angle(p,q,r):
         return atan2(r[1]-q[1],r[0]-q[0])-atan2(q[1]-p[1],q[0]-p[0])
 
-    def ptval_min_y(ptA, ptB, to_eval):
+    def pt_eval(ptA, ptB, to_eval):
         y_int = get_y_intersection(to_eval[0], ptA,ptB)
         x_int = get_x_intersection(to_eval[1],ptA,ptB)
         return abs(y_int - to_eval[1])*abs(x_int-to_eval[0])
@@ -384,60 +378,36 @@ def convex_hull_jacob(points, big_poly_list):
         for i in range(0,len(points)-1):
             print('({0: 8.2f}, {1: 8.2f}),({2: 8.2f},{3: 8.2f}) = {4: 8.2f}'.format(points[i][0],points[i][1],points[i+1][0],points[i+1][1], atan2(points[i+1][1]-points[i][1],points[i+1][0]-points[i][0]) )  )
     
-    def get_min_y(keys, to_search, ptA, ptB):
-        lo = find_gt(keys,min(ptA[0],ptB[0]))
-        hi= find_lt(keys,max(ptA[0],ptB[0]))
-        mid_x = (ptA[0]+ptB[0])/2
-        min_y = max(ptA[1],ptB[1])
+    def get_best_pt(keys, to_search, ptA, ptB, is_above, is_left, ang):
+        this_coord=1
+        other_coord=0
+        if is_above:
+            this_func = lambda a,b: min(a,b)
+            other_func = lambda a,b: max(a,b)
+        else:
+            this_func = lambda a,b: max(a,b)
+            other_func = lambda a,b: min(a,b)
+        lo = find_gt(keys,min(ptA[other_coord],ptB[other_coord]))
+        hi= find_lt(keys,max(ptA[other_coord],ptB[other_coord]))
+        extremum = other_func(ptA[this_coord],ptB[this_coord])
         best_pt = (ptB[0],ptB[1])
-        for i in range(hi,lo-1,-1):
-            if to_search[i][1] < min_y:
-                if ptval_min_y(ptA,ptB,to_search[i]) > ptval_min_y(ptA, ptB,best_pt):
+        best_eval = pt_eval(ptA, ptB, best_pt)
+        print('ptA={0}, ptB={1}'.format(ptA,ptB))
+        print('extremum={0}'.format(extremum))
+        the_iter=range(hi,lo-1,-1) if bool(not is_left) else range(lo,hi+1,1)
+        for i in the_iter:
+            print('to_search[i][this_coord]={0}'.format(to_search[i][this_coord]))
+            if (is_above and to_search[i][this_coord] < extremum) or (not is_above and to_search[i][this_coord] > extremum):
+                temp_eval = pt_eval(ptA,ptB,to_search[i])
+                print('(is_above={0},is_left={1}, ang={4}), best_pt={2}, temp_eval={3}'.format(is_above,is_left,best_pt,temp_eval, ang/pi))
+
+                if temp_eval > best_eval:
                     best_pt = to_search[i]
-                min_y = to_search[i][1]
+                    best_eval = temp_eval
+                extremum = to_search[i][this_coord]
+        print('')
         return best_pt
-    
-        # print('Begin (get_min_y): to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_pt[1]))
-        # while lo < len(to_search) and to_search[lo][0] <= max(ptA[0],ptB[0]) and to_search[lo] != ptA and to_search[lo] != ptB:
-        #     if to_search[lo][1] < min_pt[1] and to_search[lo][1] > min(ptA[1],ptB[1]):
-        #         print('min_y-to_search[{0}]=({1:.4f}, {2:.4f}), min_y={3}'.format(i,to_search[i][0],to_search[i][1],min_pt[1]))
-        #         min_pt=to_search[lo]
-        #     lo=lo+1
-        # print('min_y={0}, ptA={1}, ptB={2}'.format(min_pt[1],ptA,ptB))
-        # return min_pt
 
-    def get_min_x(keys, to_search, ptA, ptB):
-        min_x=max(ptA[0],ptB[0])
-        i = find_gt(keys,min(ptA[1],ptB[1]))
-        # print('Begin (get_min_x): to_search[{0}]=({1:.4f}, {2:.4f}), min_x={3}'.format(i,to_search[i][0],to_search[i][1],min_x))
-
-        while i < len(to_search) and to_search[i][1] <= max(ptA[1],ptB[1]) and to_search[i] != ptA and to_search[i] != ptB:
-            if to_search[i][0] < min_x and to_search[i][0] > min(ptA[0],ptB[0]):
-                # print('min_x-to_search[{0}]=({1:.4f}, {2:.4f}), min_x={3}'.format(i,to_search[i][0],to_search[i][1],min_x))
-
-                min_x=to_search[i][0]
-            i=i+1
-        # print('min_x={0}, ptA={1}, ptB={2}'.format(min_x,ptA,ptB))
-
-        return min_x
-
-    def get_max_y(keys,to_search, ptA, ptB):
-        max_y=min(ptA[1],ptB[1])
-        i = find_gt(keys,min(ptA[0],ptB[0]))
-        while i < len(to_search) and to_search[i][0] <= max(ptA[0],ptB[0]) and to_search[i] != ptA and to_search[i] != ptB:
-            if to_search[i][1] > max_y and to_search[i][1] < max(ptA[1],ptB[1]):
-                max_y=to_search[i][1]
-            i=i+1
-        return max_y
-
-    def get_max_x(keys,to_search, ptA, ptB):
-        max_x=min(ptA[0],ptB[0])
-        i = find_gt(keys,min(ptA[1],ptB[1]))
-        while i < len(to_search) and to_search[i][1] <= max(ptA[1],ptB[1]) and to_search[i] != ptA and to_search[i] != ptB:
-            if to_search[i][0] > max_x and to_search[i][0] < max(ptA[0],ptB[0]):
-                max_x=to_search[i][0]
-            i=i+1
-        return max_x
     
     def _line_angle(a,b):
         return atan2(b[1]-a[1],b[0]-a[0])
@@ -469,73 +439,66 @@ def convex_hull_jacob(points, big_poly_list):
             j=(i+1) % len(hull)
             ang = _line_angle(hull[i],hull[j])
             ret_hull.append(hull[i])
-            temp_pta1 = temp_pta2 = temp_pta3 = temp_ptb1 = temp_ptb2 = temp_ptb3 = None
+            temp_pt1 = temp_pt2 = temp_pt3 = None
             if near_lt(0,ang) and near_lt(ang,pi/2):
-                min_pt=get_min_y(x_keys, x_points,hull[i],hull[j])
+                print('0 < ang < pi/2')
+                min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],True,False,ang)
 
                 if near_le(min_pt[0],hull[i][0]):
-                    temp_pta1=(hull[i][0],min_pt[1])
-                    temp_pta2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt1=(hull[i][0],min_pt[1])
+                    temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
                 else:
-                    temp_pta1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
-                    temp_pta2 = (min_pt[0], min_pt[1])
-                    temp_pta3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
-                    
-                    print('hull[i]={0}, temp_pta1={1},temp_pta2={2},temp_pta3={3},hull[j]={4}'.format(hull[i],temp_pta1, temp_pta2, temp_pta3, hull[j]))
-#                temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
+                    temp_pt1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
+                    temp_pt2 = (min_pt[0], min_pt[1])
+                    temp_pt3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
 
-#                temp_ptb2 = (temp_x, hull[j][1])
-#                temp_ptb1 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
-                
-                
             elif near_lt(-pi/2,ang) and near_lt(ang,0):
-                temp_y=get_min_y(x_keys, x_points,hull[i],hull[j])[1]
-                temp_pta2=(hull[j][0],temp_y)
-                temp_pta1 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
+                print('-pi/2 < ang < 0')
 
-                temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
-                temp_ptb1=(temp_x, hull[j][1])
-                temp_ptb2 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
+                min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],True,True,ang)
+
+                if near_ge(min_pt[0],hull[j][0]):
+                    temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt2=(hull[j][0],min_pt[1])
+                else:
+                    temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt2 = (min_pt[0], min_pt[1])
+                    temp_pt3=(min_pt[0], get_y_intersection(min_pt[0], hull[i], hull[j]))
 
 
             elif near_lt(-pi,ang) and near_lt(ang,-pi/2):
-                temp_y=get_max_y(x_keys, x_points,hull[i],hull[j])
-                temp_pta1=(hull[i][0],temp_y)
-                temp_pta2 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
+                print('-pi < ang < -pi/2')
+                
+                min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],False,True,ang)
 
+                if near_le(min_pt[0],hull[i][0]):
+                    temp_pt1=(hull[i][0],min_pt[1])
+                    temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                else:
+                    temp_pt1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
+                    temp_pt2 = (min_pt[0], min_pt[1])
+                    temp_pt3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
 
-                temp_x=get_min_x(y_keys, y_points,hull[i],hull[j])
-                temp_ptb2=(temp_x, hull[j][1])
-                temp_ptb1 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
                 
             elif near_lt(pi/2,ang) and near_lt(ang,pi):
                 continue
                 temp_y=get_max_y(x_keys, x_points,hull[i],hull[j])
-                temp_pta2=(hull[j][0],temp_y)
-                temp_pta1 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
-
-                temp_x=get_max_x(y_keys, y_points,hull[i],hull[j])
-                temp_ptb2 = (temp_x, hull[j][1])
-                temp_ptb1 = (temp_x, get_y_intersection(temp_x,hull[i],hull[j]))
+                temp_pt2=(hull[j][0],temp_y)
+                temp_pt1 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
 
             else:
                 continue
 
-            # if temp_pta3 is None or temp_ptb3 is None:
-            #     is_a=length(hull[i],temp_pta1)+length(temp_pta1,temp_pta2)+length(temp_pta2,hull[j])>length(hull[i],temp_ptb1)+length(temp_ptb1, temp_ptb2)+length(temp_ptb2,hull[j])
-            # else:
-            #     is_a=length(hull[i],temp_pta1)+length(temp_pta1,temp_pta2)+length(temp_pta2,temp_pta3)+length(temp_pta3,hull[j])>length(hull[i],temp_ptb1)+length(temp_ptb1, temp_ptb2)+length(temp_ptb2, temp_ptb3)+length(temp_ptb3,hull[j])
-            
-            temp_pt1 = temp_pta1# if is_a else temp_ptb1
-            temp_pt2 = temp_pta2# if is_a else temp_ptb2
-            temp_pt3 = None
-            if temp_pta3 is not None:# and temp_ptb3 is not None:
-                temp_pt3 = temp_pta3 #if is_a else temp_ptb3
-            
-            ret_hull.append(temp_pt1)
-            ret_hull.append(temp_pt2)
-            if temp_pt3 is not None:
-                ret_hull.append(temp_pt3)
+            temp_pt1 = temp_pt1# if is_a else temp_ptb1
+            temp_pt2 = temp_pt2# if is_a else temp_ptb2
+            # temp_pt3 = None if
+            # if temp_pta3 is not None:# and temp_ptb3 is not None:
+            #     temp_pt3 = temp_pta3 #if is_a else temp_ptb3
+            if length(temp_pt1,hull[i])>0 and length(temp_pt2, hull[j])>0:
+                ret_hull.append(temp_pt1)
+                ret_hull.append(temp_pt2)
+                if temp_pt3 is not None:
+                    ret_hull.append(temp_pt3)
 
         return ret_hull
     

@@ -5,7 +5,7 @@ from geometry.utils import join_features
 from geometry import create_feature
 from geometry.utils import geom_to_bbox
 from geometry.utils import bbox_to_polygon
-from geometry.utils import get_offset_coords, get_offset_coords_complex, get_offset_coords_super_complex
+from geometry.utils import get_offset_coords, get_offset_coords_complex, get_complex_hull
 from geometry.feature import Feature, MultiPolygonFeature
 from math import sqrt
 from options import parse_curr_layer
@@ -373,7 +373,7 @@ class Map(object):
         self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords_complex(self._projected_bounds, self._side_projected_bounds, main_geom.convex_hull, side_geom.convex_hull, self._position_factor, self)
 
 
-        temp_geom = get_offset_coords_super_complex(self._projected_bounds, self._side_projected_bounds, main_geom, side_geom, self._position_factor, self)
+        temp_geom = get_complex_hull(self._projected_bounds, self._side_projected_bounds, main_geom,  self._position_factor, self)
         
     #    # self._n_side_off['x'], self._n_side_off['y'] = get_offset_coords(self._projected_bounds, self._side_projected_bounds, self._position_factor)
         
@@ -385,13 +385,16 @@ class Map(object):
     #         #print 'Adding temp_feat={0}'.format(temp_feat)
     # #        layer.features = [temp_feat]
             layer.features.append(temp_feat)
-        # layer=self.layersById[data['sidelayer']]
-        # if len(layer.features)>0:
-        #     temp_STATEFP=layer.features[0].props['STATEFP']
-        #     temp_feat=create_feature(side_geom.convex_hull,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-        #     layer.features.append(temp_feat)
-        #print 'self._n_side_off={0}'.format(self._n_side_off)
-         # transform to offset the sidelayers
+
+        temp_geom2 = get_complex_hull(self._projected_bounds, self._side_projected_bounds, side_geom, self._position_factor, self)
+
+        layer=self.layersById[data['sidelayer']]
+        if len(layer.features)>0:
+            temp_STATEFP=layer.features[0].props['STATEFP']
+            temp_feat=create_feature(temp_geom2,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+            layer.features.append(temp_feat)
+        print 'self._n_side_off={0}'.format(self._n_side_off)
+#         transform to offset the sidelayers
         new_proj_bbox=BBox()
         for layer in self.layers:
             if "sidelayer" in layer.options and layer.options['sidelayer']==data['sidelayer']:
