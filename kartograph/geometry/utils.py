@@ -392,20 +392,34 @@ def convex_hull_jacob(points, big_poly_list):
         extremum = other_func(ptA[this_coord],ptB[this_coord])
         best_pt = (ptB[0],ptB[1])
         best_eval = pt_eval(ptA, ptB, best_pt)
-        print('ptA={0}, ptB={1}'.format(ptA,ptB))
-        print('extremum={0}'.format(extremum))
-        the_iter=range(hi,lo-1,-1) if bool(not is_left) else range(lo,hi+1,1)
+        # print('ptA={0}, ptB={1}'.format(ptA,ptB))
+        # print('extremum={0}'.format(extremum))
+        the_iter=range(lo,hi+1,1) if bool(not is_left) ^ bool(is_above) else range(hi,lo-1,-1)
+        good_pts=[]
+        cross_bool = bool(not is_left) ^ bool(is_above)
         for i in the_iter:
-            print('to_search[i][this_coord]={0}'.format(to_search[i][this_coord]))
             if (is_above and to_search[i][this_coord] < extremum) or (not is_above and to_search[i][this_coord] > extremum):
-                temp_eval = pt_eval(ptA,ptB,to_search[i])
-                print('(is_above={0},is_left={1}, ang={4}), best_pt={2}, temp_eval={3}'.format(is_above,is_left,best_pt,temp_eval, ang/pi))
-
-                if temp_eval > best_eval:
-                    best_pt = to_search[i]
-                    best_eval = temp_eval
+                good_pts.append((to_search[i][0], to_search[i][1]))
                 extremum = to_search[i][this_coord]
-        print('')
+            # elif (is_above and to_search[i][this_coord] > extremum) or (not is_above and to_search[i][this_coord] < extremum):
+            #     if cross_bool:
+            #         good_pts=[pt for pt in good_pts if pt[1] > to_search[i][this_coord]]
+            #     else:
+            #         good_pts=[pt for pt in good_pts if pt[1] < to_search[i][this_coord]]
+                    
+        # the_iter=range(lo,hi+1,1)#if bool(not is_left) ^ bool(is_above) else range(hi,lo-1,-1)
+        extremum = other_func(ptA[this_coord],ptB[this_coord])           
+        for curr_pt in good_pts:
+
+            temp_eval = pt_eval(ptA,ptB,curr_pt)
+
+            if temp_eval > best_eval:
+                best_pt = (curr_pt[0], curr_pt[1])
+                best_eval = temp_eval
+        # print('(is_above={0},is_left={1}, ang={4}), best_pt={2}, temp_eval={3}'.format(is_above,is_left,best_pt,temp_eval, ang/pi))
+
+            extremum = curr_pt[this_coord]
+        # print('')
         return best_pt
 
     
@@ -440,14 +454,18 @@ def convex_hull_jacob(points, big_poly_list):
             ang = _line_angle(hull[i],hull[j])
             ret_hull.append(hull[i])
             temp_pt1 = temp_pt2 = temp_pt3 = None
+            print('hull[{0}]={1}, hull[{2}]={3}'.format(i,hull[i],j,hull[j]))
             if near_lt(0,ang) and near_lt(ang,pi/2):
                 print('0 < ang < pi/2')
                 min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],True,False,ang)
+                print '\tmin_pt={0}'.format(min_pt)
 
-                if near_le(min_pt[0],hull[i][0]):
+                if near_ge(min_pt[0],max(hull[i][0],hull[j][0])):
+                    print '\t near_ge'
                     temp_pt1=(hull[i][0],min_pt[1])
                     temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
                 else:
+                    print '\t not near_ge'
                     temp_pt1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
                     temp_pt2 = (min_pt[0], min_pt[1])
                     temp_pt3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
@@ -456,6 +474,7 @@ def convex_hull_jacob(points, big_poly_list):
                 print('-pi/2 < ang < 0')
 
                 min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],True,True,ang)
+                print '\tmin_pt={0}'.format(min_pt)
 
                 if near_ge(min_pt[0],hull[j][0]):
                     temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
@@ -470,8 +489,8 @@ def convex_hull_jacob(points, big_poly_list):
                 print('-pi < ang < -pi/2')
                 
                 min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],False,True,ang)
-
-                if near_le(min_pt[0],hull[i][0]):
+                print '\tmin_pt={0}'.format(min_pt)
+                if near_ge(min_pt[0],hull[i][0]):
                     temp_pt1=(hull[i][0],min_pt[1])
                     temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
                 else:

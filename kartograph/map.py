@@ -386,13 +386,13 @@ class Map(object):
     # #        layer.features = [temp_feat]
             layer.features.append(temp_feat)
 
-        temp_geom2 = get_complex_hull(self._projected_bounds, self._side_projected_bounds, side_geom, self._position_factor, self)
+        # temp_geom2 = get_complex_hull(self._projected_bounds, self._side_projected_bounds, side_geom, self._position_factor, self)
 
-        layer=self.layersById[data['sidelayer']]
-        if len(layer.features)>0:
-            temp_STATEFP=layer.features[0].props['STATEFP']
-            temp_feat=create_feature(temp_geom2,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-            layer.features.append(temp_feat)
+        # layer=self.layersById[data['sidelayer']]
+        # if len(layer.features)>0:
+        #     temp_STATEFP=layer.features[0].props['STATEFP']
+        #     temp_feat=create_feature(temp_geom2,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+        #     layer.features.append(temp_feat)
         print 'self._n_side_off={0}'.format(self._n_side_off)
 #         transform to offset the sidelayers
         new_proj_bbox=BBox()
