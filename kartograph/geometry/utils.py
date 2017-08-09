@@ -212,6 +212,25 @@ def get_offset_coords_complex(mainbbox, sidebbox, main_geom, side_geom, position
     
     return x_offset, y_offset
 
+# Get optimal side geometry offsets 
+
+def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, position_factor, the_map):
+    opts = the_map.options
+    data = opts['bounds']['data']
+    sidelayer = the_map.layersById[data['sidelayer']]
+    m_hull = geom.convex_hull#geom_to_bbox(geom,min_area=0)
+ #   s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
+
+    m_hull = get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map)
+    s_hull = get_complex_hull(mainbbox, sidebbox, side_geom, position_factor, the_map)
+        
+
+    if len(ret_poly_list)>1:
+        return MultiPolygon(ret_poly_list)
+    else:
+        return ret_poly_list[0]
+
+
 def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
     opts = the_map.options
     data = opts['bounds']['data']
@@ -231,7 +250,7 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
     else:
         poly_list = geom
     max_area = max(poly.area for poly in poly_list)
-    big_poly_list = [poly for poly in poly_list if poly.area*50000 >= max_area]
+    big_poly_list = [poly for poly in poly_list]# if poly.area*50000 >= max_area]
     next_poly_list=[]
     
     for poly in big_poly_list:
@@ -460,12 +479,19 @@ def convex_hull_jacob(points, big_poly_list):
                 # print '\tmin_pt={0}'.format(min_pt)
 
                 if near_ge(min_pt[0],max(hull[i][0],hull[j][0])):
+                    # temp_pt1=(hull[i][0],min_pt[1])
+                    # temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
                     temp_pt1=(hull[i][0],min_pt[1])
-                    temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt2 = (hull[j][0],min_pt[1])
+
                 else:
-                    temp_pt1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
+                    # temp_pt1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
+                    # temp_pt2 = (min_pt[0], min_pt[1])
+                    # temp_pt3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+
+                    temp_pt1 = (min_pt[0], hull[i][1])
                     temp_pt2 = (min_pt[0], min_pt[1])
-                    temp_pt3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt3 = (hull[j][0],min_pt[1])
 
             elif near_lt(-pi/2,ang) and near_lt(ang,0):
                 # print('-pi/2 < ang < 0')
@@ -474,12 +500,15 @@ def convex_hull_jacob(points, big_poly_list):
                 # print '\tmin_pt={0}'.format(min_pt)
 
                 if near_ge(min_pt[0],hull[j][0]):
-                    temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    # temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    # temp_pt2=(hull[j][0],min_pt[1])
+                    temp_pt1 = (hull[i][0],min_pt[1])
                     temp_pt2=(hull[j][0],min_pt[1])
+
                 else:
-                    temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt1 = (hull[i][0],min_pt[1])
                     temp_pt2 = (min_pt[0], min_pt[1])
-                    temp_pt3=(min_pt[0], get_y_intersection(min_pt[0], hull[i], hull[j]))
+                    temp_pt3=(min_pt[0], hull[j][1])
 
 
             elif near_lt(-pi,ang) and near_lt(ang,-pi/2):
@@ -489,11 +518,11 @@ def convex_hull_jacob(points, big_poly_list):
                 # print '\tmin_pt={0}'.format(min_pt)
                 if near_ge(min_pt[0],hull[i][0]):
                     temp_pt1=(hull[i][0],min_pt[1])
-                    temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt2 = (hull[j][0],min_pt[1])
                 else:
-                    temp_pt1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
+                    temp_pt1 = (min_pt[0], hull[i][1])
                     temp_pt2 = (min_pt[0], min_pt[1])
-                    temp_pt3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt3 = (hull[j][0],min_pt[1])
 
                 
             elif near_lt(pi/2,ang) and near_lt(ang,pi):
@@ -502,12 +531,12 @@ def convex_hull_jacob(points, big_poly_list):
                 min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],False,False,ang)
                 # print '\tmin_pt={0}'.format(min_pt)
                 if near_ge(min_pt[0],hull[i][0]):
-                    temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt1 = (hull[i][0],min_pt[1])
                     temp_pt2=(hull[j][0],min_pt[1])
                 else:
-                    temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt1 = (hull[i][0],min_pt[1])
                     temp_pt2 = (min_pt[0], min_pt[1])
-                    temp_pt3=(min_pt[0], get_y_intersection(min_pt[0], hull[i], hull[j]))
+                    temp_pt3=(min_pt[0], hull[j][1])
 
             else:
                 continue
