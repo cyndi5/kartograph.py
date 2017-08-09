@@ -394,18 +394,15 @@ def convex_hull_jacob(points, big_poly_list):
         best_eval = pt_eval(ptA, ptB, best_pt)
         # print('ptA={0}, ptB={1}'.format(ptA,ptB))
         # print('extremum={0}'.format(extremum))
-        the_iter=range(lo,hi+1,1) if bool(not is_left) ^ bool(is_above) else range(hi,lo-1,-1)
+        the_iter=range(lo,hi+1,1) if bool(is_left) else range(hi,lo-1,-1)
         good_pts=[]
         cross_bool = bool(not is_left) ^ bool(is_above)
         for i in the_iter:
             if (is_above and to_search[i][this_coord] < extremum) or (not is_above and to_search[i][this_coord] > extremum):
                 good_pts.append((to_search[i][0], to_search[i][1]))
                 extremum = to_search[i][this_coord]
-            # elif (is_above and to_search[i][this_coord] > extremum) or (not is_above and to_search[i][this_coord] < extremum):
-            #     if cross_bool:
-            #         good_pts=[pt for pt in good_pts if pt[1] > to_search[i][this_coord]]
-            #     else:
-            #         good_pts=[pt for pt in good_pts if pt[1] < to_search[i][this_coord]]
+            elif (not is_above and to_search[i][this_coord] < extremum):
+               good_pts=[pt for pt in good_pts if pt[1] > to_search[i][this_coord]]
                     
         # the_iter=range(lo,hi+1,1)#if bool(not is_left) ^ bool(is_above) else range(hi,lo-1,-1)
         extremum = other_func(ptA[this_coord],ptB[this_coord])           
