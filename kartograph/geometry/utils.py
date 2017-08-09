@@ -497,10 +497,17 @@ def convex_hull_jacob(points, big_poly_list):
 
                 
             elif near_lt(pi/2,ang) and near_lt(ang,pi):
-                continue
-                temp_y=get_max_y(x_keys, x_points,hull[i],hull[j])
-                temp_pt2=(hull[j][0],temp_y)
-                temp_pt1 = (get_x_intersection(temp_y,hull[i],hull[j]),temp_y)
+                print('pi/2 < ang < pi')
+                
+                min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],False,False,ang)
+                print '\tmin_pt={0}'.format(min_pt)
+                if near_ge(min_pt[0],hull[j][0]):
+                    temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt2=(hull[j][0],min_pt[1])
+                else:
+                    temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                    temp_pt2 = (min_pt[0], min_pt[1])
+                    temp_pt3=(min_pt[0], get_y_intersection(min_pt[0], hull[i], hull[j]))
 
             else:
                 continue
