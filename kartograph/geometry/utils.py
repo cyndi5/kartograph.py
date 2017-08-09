@@ -222,6 +222,7 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
     best_poly = None
     coord_list=[]
     poly_list=[]
+    print('\nGetting complex hull')
 
     ret_poly_list=[]
     
@@ -364,8 +365,9 @@ def convex_hull_jacob(points, big_poly_list):
         return ((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]))/(length(p,q)*length(q,r))
 
     def turn_angle(p,q,r):
-        return atan2(r[1]-q[1],r[0]-q[0])-atan2(q[1]-p[1],q[0]-p[0])
-
+        ang = atan2(r[1]-q[1],r[0]-q[0])-atan2(q[1]-p[1],q[0]-p[0])
+        ang = ang + 2*pi if ang <= -pi else ang
+        return ang
     def pt_eval(ptA, ptB, to_eval):
         y_int = get_y_intersection(to_eval[0], ptA,ptB)
         x_int = get_x_intersection(to_eval[1],ptA,ptB)
@@ -401,8 +403,8 @@ def convex_hull_jacob(points, big_poly_list):
             if (is_above and to_search[i][this_coord] < extremum) or (not is_above and to_search[i][this_coord] > extremum):
                 good_pts.append((to_search[i][0], to_search[i][1]))
                 extremum = to_search[i][this_coord]
-            elif (not is_above and to_search[i][this_coord] < extremum):
-               good_pts=[pt for pt in good_pts if pt[1] > to_search[i][this_coord]]
+            # elif (not is_above and to_search[i][this_coord] < extremum):
+            #    good_pts=[pt for pt in good_pts if pt[1] > to_search[i][this_coord]]
                     
         # the_iter=range(lo,hi+1,1)#if bool(not is_left) ^ bool(is_above) else range(hi,lo-1,-1)
         extremum = other_func(ptA[this_coord],ptB[this_coord])           
@@ -442,36 +444,34 @@ def convex_hull_jacob(points, big_poly_list):
         # Need to check if two points on convex hull are on same simple polygon or not??
         ret_hull=[]
         x_points = points
-        y_points = sorted(deepcopy(points), key = lambda pt: pt[1])
+        # y_points = sorted(deepcopy(points), key = lambda pt: pt[1])
         
         x_keys = [pt[0] for pt in points]
-        y_keys = [pt[1] for pt in y_points]
+        # y_keys = [pt[1] for pt in y_points]
         for i in range(0,len(hull)):
             j=(i+1) % len(hull)
             ang = _line_angle(hull[i],hull[j])
             ret_hull.append(hull[i])
             temp_pt1 = temp_pt2 = temp_pt3 = None
-            print('hull[{0}]={1}, hull[{2}]={3}'.format(i,hull[i],j,hull[j]))
+            # print('hull[{0}]={1}, hull[{2}]={3}'.format(i,hull[i],j,hull[j]))
             if near_lt(0,ang) and near_lt(ang,pi/2):
-                print('0 < ang < pi/2')
+                # print('0 < ang < pi/2')
                 min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],True,False,ang)
-                print '\tmin_pt={0}'.format(min_pt)
+                # print '\tmin_pt={0}'.format(min_pt)
 
                 if near_ge(min_pt[0],max(hull[i][0],hull[j][0])):
-                    print '\t near_ge'
                     temp_pt1=(hull[i][0],min_pt[1])
                     temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
                 else:
-                    print '\t not near_ge'
                     temp_pt1 = (min_pt[0], get_y_intersection(min_pt[0], hull[i],hull[j]))
                     temp_pt2 = (min_pt[0], min_pt[1])
                     temp_pt3 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
 
             elif near_lt(-pi/2,ang) and near_lt(ang,0):
-                print('-pi/2 < ang < 0')
+                # print('-pi/2 < ang < 0')
 
                 min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],True,True,ang)
-                print '\tmin_pt={0}'.format(min_pt)
+                # print '\tmin_pt={0}'.format(min_pt)
 
                 if near_ge(min_pt[0],hull[j][0]):
                     temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
@@ -483,10 +483,10 @@ def convex_hull_jacob(points, big_poly_list):
 
 
             elif near_lt(-pi,ang) and near_lt(ang,-pi/2):
-                print('-pi < ang < -pi/2')
+                # print('-pi < ang < -pi/2')
                 
                 min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],False,True,ang)
-                print '\tmin_pt={0}'.format(min_pt)
+                # print '\tmin_pt={0}'.format(min_pt)
                 if near_ge(min_pt[0],hull[i][0]):
                     temp_pt1=(hull[i][0],min_pt[1])
                     temp_pt2 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
@@ -497,11 +497,11 @@ def convex_hull_jacob(points, big_poly_list):
 
                 
             elif near_lt(pi/2,ang) and near_lt(ang,pi):
-                print('pi/2 < ang < pi')
+                # print('pi/2 < ang < pi')
                 
                 min_pt=get_best_pt(x_keys, x_points,hull[i],hull[j],False,False,ang)
-                print '\tmin_pt={0}'.format(min_pt)
-                if near_ge(min_pt[0],hull[j][0]):
+                # print '\tmin_pt={0}'.format(min_pt)
+                if near_ge(min_pt[0],hull[i][0]):
                     temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
                     temp_pt2=(hull[j][0],min_pt[1])
                 else:
@@ -543,6 +543,12 @@ def convex_hull_jacob(points, big_poly_list):
     points = sorted(points, key = lambda pt: pt[0])
     big_hull_list = [p.exterior.coords[:-1] for p in big_poly_list]
     ret_hull = _add_hull(points,l, big_hull_list)
+
+    for i in range(0,len(ret_hull)):
+        j=(i+1)%len(ret_hull)
+        k=(i+2)%len(ret_hull)
+        print('{0},{1},{2},\n\ttheta={3:.4f}'.format(ret_hull[i],ret_hull[j],ret_hull[k],turn_angle(ret_hull[i],ret_hull[j],ret_hull[k])/pi))
+    
     print('len(points)={0}'.format(len(points)))
     return ret_hull
     #return l.extend(u[i] for i in range(1, len(u) - 1)) or l
