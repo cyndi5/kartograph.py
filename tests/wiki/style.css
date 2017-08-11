@@ -44,6 +44,15 @@ fill: #ffffff;
 #   opacity: 0.2;
 }
 
+#countylayer[PLACEFP=00000]
+{
+  fill: none;
+  stroke: #000060;
+  stroke-width: 1px;
+  opacity: 1.0;
+#   opacity: 0.2;
+}
+
 
 #highlightlayer
 {

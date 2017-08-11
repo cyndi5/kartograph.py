@@ -5,7 +5,7 @@ geometry utils
 from hullseg import hullseg
 from feature import create_feature
 from shapely.geometry import Point, Polygon, LineString, MultiPolygon
-from math import atan, cos
+from math import atan, cos, sin, atan2, pi,sqrt
 from copy import deepcopy
 def is_clockwise(pts):
     """ returns true if a given linear ring is in clockwise order """
@@ -36,7 +36,6 @@ def bbox_to_polygon(bbox):
     s = bbox
     poly = Polygon([(s.left, s.bottom), (s.left, s.top), (s.right, s.top), (s.right, s.bottom)])
     return poly
-
 
 def geom_to_bbox(geom, min_area=0):
     from kartograph.geometry import BBox
@@ -221,14 +220,37 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, positio
     m_hull = geom.convex_hull#geom_to_bbox(geom,min_area=0)
  #   s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
 
-    m_hull = get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map)
-    s_hull = get_complex_hull(mainbbox, sidebbox, side_geom, position_factor, the_map)
-        
+    m_hull = get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map).exterior.coords[:-1]
+    s_hull = get_complex_hull(mainbbox, sidebbox, side_geom, position_factor, the_map).exterior.coords[:-1]
+    m_ang=[]
+    s_ang=[]
+    for l in range(len(m_hull)):
+        i=(l-1) % len(m_hull)
+        j=l
+        k=(l+1) % len(m_hull)
+        m_ang.append(turn_angle(m_hull[i],m_hull[j],m_hull[k]))
+    for l in range(len(s_hull)):
+        i=(l-1) % len(s_hull)
+        j=l
+        k=(l+1) % len(s_hull)
+        s_ang.append(turn_angle(s_hull[i],s_hull[j],s_hull[k]))
 
-    if len(ret_poly_list)>1:
-        return MultiPolygon(ret_poly_list)
-    else:
-        return ret_poly_list[0]
+    new_x = m_hull[0][0]-cos(m_ang[0])
+    new_y = m_hull[0][1]-sin(m_ang[0])
+    min_length=float('inf')
+    offset_x = new_x - s_hull[0][0]
+    offset_y = new_y - s_hull[0][1]
+    # min_length=length(offset_x,offset_y)
+    # for i in range(len(s_hull)):
+    #     tempoffset_x = new_x - s_hull[i][0]
+    #     tempoffset_y = new_y - s_hull[i][1]
+    #     if(length(tempoffset_x, tempoffset_y) < 
+    s_hull=[(s_hull[i][0]+offset_x,s_hull[i][1]+offset_y) for i in range(len(s_hull))]
+
+    return Polygon(m_hull), Polygon(s_hull)
+        
+    
+    
 
 
 def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
@@ -264,14 +286,15 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
 
     curr_poly = Polygon(convex_hull_jacob(coord_list, big_poly_list))
 
-    print 'Bounds(curr_poly)={0}'.format(curr_poly.bounds)
-    ret_poly_list.append(curr_poly)
+    return curr_poly
+    # print 'Bounds(curr_poly)={0}'.format(curr_poly.bounds)
+    # ret_poly_list.append(curr_poly)
         
 
-    if len(ret_poly_list)>1:
-        return MultiPolygon(ret_poly_list)
-    else:
-        return ret_poly_list[0]
+    # if len(ret_poly_list)>1:
+    #     return MultiPolygon(ret_poly_list)
+    # else:
+    #     return ret_poly_list[0]
 
 
 def convex_hull_graham(points):
@@ -302,7 +325,16 @@ def convex_hull_graham(points):
     l = reduce(_keep_left, points, [])
     u = reduce(_keep_left, reversed(points), [])
     return l.extend(u[i] for i in range(1, len(u) - 1)) or l
-    
+
+def turn_angle(p,q,r):
+    ang = atan2(r[1]-q[1],r[0]-q[0])-atan2(q[1]-p[1],q[0]-p[0])
+    ang = ang + 2*pi if ang <= -pi else ang
+    return ang
+
+def length(a,b):
+    return sqrt((a[1]-b[1])**2+(a[0]-b[0])**2)
+
+
 def convex_hull_jacob(points, big_poly_list):
     '''
     Returns points on convex hull in CCW order according to Graham's scan algorithm. 
@@ -363,8 +395,6 @@ def convex_hull_jacob(points, big_poly_list):
             return i
         raise ValueError
         
-    def length(a,b):
-        return sqrt((a[1]-b[1])**2+(a[0]-b[0])**2)
 
 
     def cmp(a, b):
@@ -383,10 +413,7 @@ def convex_hull_jacob(points, big_poly_list):
     def turn_real(p, q, r):
         return ((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]))/(length(p,q)*length(q,r))
 
-    def turn_angle(p,q,r):
-        ang = atan2(r[1]-q[1],r[0]-q[0])-atan2(q[1]-p[1],q[0]-p[0])
-        ang = ang + 2*pi if ang <= -pi else ang
-        return ang
+
     def pt_eval(ptA, ptB, to_eval):
         y_int = get_y_intersection(to_eval[0], ptA,ptB)
         x_int = get_x_intersection(to_eval[1],ptA,ptB)
@@ -576,7 +603,7 @@ def convex_hull_jacob(points, big_poly_list):
     for i in range(0,len(ret_hull)):
         j=(i+1)%len(ret_hull)
         k=(i+2)%len(ret_hull)
-        print('{0},{1},{2},\n\ttheta={3:.4f}'.format(ret_hull[i],ret_hull[j],ret_hull[k],turn_angle(ret_hull[i],ret_hull[j],ret_hull[k])/pi))
+        # print('{0},{1},{2},\n\ttheta={3:.4f}'.format(ret_hull[i],ret_hull[j],ret_hull[k],turn_angle(ret_hull[i],ret_hull[j],ret_hull[k])/pi))
     
     print('len(points)={0}'.format(len(points)))
     return ret_hull
