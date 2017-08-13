@@ -225,7 +225,7 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, positio
     sidelayer = the_map.layersById[data['sidelayer']]
     #m_hull = geom.convex_hull#geom_to_bbox(geom,min_area=0)
 
-    the_dist = mainbbox.width * mainbbox.height / 100.
+    the_dist = mainbbox.width * mainbbox.height / 500.
  #   s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
 
     m_hull = get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map).exterior.coords[:-1]
@@ -287,13 +287,13 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, positio
         tempoffset_y = temp_new_y - s_hull[i][1]
         
         the_diff=ang_diff(m_ang[j],s_ang[i])
-       # print 'the_diff at {0},{2}={1}'.format(i,the_diff/pi,j)
-        if near_eq(ang_diff(m_ang[j],s_ang[i]),pi) and sqrt(tempoffset_x**2+tempoffset_y**2) < min_length:
+        temp_min_max_length = min_max_length(m_hull, s_hull, tempoffset_x, tempoffset_y)
+        if near_eq(ang_diff(m_ang[j],s_ang[i]),pi) and temp_min_max_length < min_length and adequate_spacing(m_hull, s_hull, tempoffset_x, tempoffset_y, the_dist/4.):
             
-            print('m_hull[{5}]={0}, s_hull[{1}]={2}, m_ang[{5}]={3:.4f}, s_ang[{1}]={4:.4f}, {6}'.format(m_hull[j],i,s_hull[i],m_ang[j]/pi,s_ang[i]/pi,j, min_length))
+            print('m_hull[{5}]={0}, s_hull[{1}]={2}, m_ang[{5}]={3:.4f}, s_ang[{1}]={4:.4f}, len={6}'.format(m_hull[j],i,s_hull[i],m_ang[j]/pi,s_ang[i]/pi,j, temp_min_max_length))
             offset_x = tempoffset_x
             offset_y = tempoffset_y
-            min_length = sqrt(offset_x**2+offset_y**2)
+            min_length = temp_min_max_length
 
             best_i=i
             best_j=j
@@ -303,6 +303,26 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, positio
     
     return Polygon(m_hull), Polygon(s_hull), offset_x, offset_y,LineString([m_hull[best_j],(s_hull[best_i][0]+offset_x, s_hull[best_i][1]+offset_y)])
 
+''' Return the length of the larger side of the rectangular region containing m_hull and the
+    offset by tempoffset_x, tempoffset_y of s_hull'''
+def min_max_length(m_hull, s_hull, tempoffset_x, tempoffset_y):
+    maxx=max([pt[0] for pt in m_hull]+[pt[0]+tempoffset_x for pt in s_hull])
+    minx=min([pt[0] for pt in m_hull]+[pt[0]+tempoffset_x for pt in s_hull])
+    maxy=max([pt[1] for pt in m_hull]+[pt[1]+tempoffset_y for pt in s_hull])
+    miny=min([pt[1] for pt in m_hull]+[pt[1]+tempoffset_y for pt in s_hull])
+
+    return max((maxx-minx),(maxy-miny))
+
+def adequate_spacing(m_hull, s_hull, tempoffset_x, tempoffset_y, the_dist):
+    s_temp = list(map(lambda x: (x[0]+tempoffset_x, x[1]+tempoffset_y), s_hull))
+    poly1 = Polygon(m_hull)
+    poly2 = Polygon(s_temp)
+    return poly1.distance(poly2) >= the_dist
+    
+
+    
+    
+    
 def print_hull(the_hull):
     to_print='({0:.5f}, {1:.5f})'.format(the_hull[0][0], the_hull[0][1])
 
