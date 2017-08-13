@@ -5,8 +5,14 @@ geometry utils
 from hullseg import hullseg
 from feature import create_feature
 from shapely.geometry import Point, Polygon, LineString, MultiPolygon
-from math import atan, cos, sin, atan2, pi,sqrt
+from math import atan, cos, sin, atan2, pi,sqrt, hypot
 from copy import deepcopy
+
+TURN_LEFT, TURN_RIGHT, TURN_NONE = (1, -1, 0)
+
+MIN_DIFF=1e-4
+
+
 def is_clockwise(pts):
     """ returns true if a given linear ring is in clockwise order """
     s = 0
@@ -217,40 +223,99 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, positio
     opts = the_map.options
     data = opts['bounds']['data']
     sidelayer = the_map.layersById[data['sidelayer']]
-    m_hull = geom.convex_hull#geom_to_bbox(geom,min_area=0)
+    #m_hull = geom.convex_hull#geom_to_bbox(geom,min_area=0)
+
+    the_dist = mainbbox.width * mainbbox.height / 100.
  #   s_hulls = side_geom#geom_to_bbox(side_geom,min_area=0)
 
     m_hull = get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map).exterior.coords[:-1]
     s_hull = get_complex_hull(mainbbox, sidebbox, side_geom, position_factor, the_map).exterior.coords[:-1]
+    m_out=[]
+    s_out=[]
     m_ang=[]
     s_ang=[]
     for l in range(len(m_hull)):
         i=(l-1) % len(m_hull)
         j=l
         k=(l+1) % len(m_hull)
-        m_ang.append(turn_angle(m_hull[i],m_hull[j],m_hull[k]))
+        ang_1 = atan2(round(m_hull[j][1]-m_hull[i][1],7),round(m_hull[j][0]-m_hull[i][0],7))
+        ang_2 = atan2(round(m_hull[k][1]-m_hull[j][1],7),round(m_hull[k][0]-m_hull[j][0],7))
+        turn_ang = turn_angle(m_hull[i],m_hull[j],m_hull[k])/pi
+
+        sign_mult = 1 if turn_ang > 0 and turn_ang < 1 else -1
+        print 'm[{2}]: ang_1={0:.5f}, ang_2={1:.5f}, ang_3={3:.5f}'.format(ang_1/pi, ang_2/pi,l,turn_ang)
+        next_pt = (m_hull[j][0] + sign_mult*the_dist*(cos(ang_1)-cos(ang_2)), m_hull[j][1] + sign_mult*the_dist*(sin(ang_1)-sin(ang_2)))
+        
+        m_ang.append(atan2(next_pt[1]-m_hull[j][1],next_pt[0]-m_hull[j][0]))
+        m_out.append(next_pt)
     for l in range(len(s_hull)):
         i=(l-1) % len(s_hull)
         j=l
         k=(l+1) % len(s_hull)
-        s_ang.append(turn_angle(s_hull[i],s_hull[j],s_hull[k]))
+        ang_1 = atan2(s_hull[j][1]-s_hull[i][1],s_hull[j][0]-s_hull[i][0])
+        ang_2 = atan2(s_hull[k][1]-s_hull[j][1],s_hull[k][0]-s_hull[j][0])
+        turn_ang = turn_angle(s_hull[i],s_hull[j],s_hull[k])/pi
 
-    new_x = m_hull[0][0]-cos(m_ang[0])
-    new_y = m_hull[0][1]-sin(m_ang[0])
-    min_length=float('inf')
-    offset_x = new_x - s_hull[0][0]
-    offset_y = new_y - s_hull[0][1]
-    # min_length=length(offset_x,offset_y)
-    # for i in range(len(s_hull)):
-    #     tempoffset_x = new_x - s_hull[i][0]
-    #     tempoffset_y = new_y - s_hull[i][1]
-    #     if(length(tempoffset_x, tempoffset_y) < 
-    s_hull=[(s_hull[i][0]+offset_x,s_hull[i][1]+offset_y) for i in range(len(s_hull))]
+        sign_mult = 1 if turn_ang > 0 and turn_ang < 1 else -1
+        print 's[{2}]: ang_1={0:.5f}, ang_2={1:.5f}'.format(ang_1/pi, ang_2/pi,l)
 
-    return Polygon(m_hull), Polygon(s_hull)
+        next_pt = (s_hull[j][0] + sign_mult*the_dist*(cos(ang_1)-cos(ang_2)), s_hull[j][1] + sign_mult*the_dist*(sin(ang_1)-sin(ang_2)))
+        s_ang.append(atan2(next_pt[1]-s_hull[j][1],next_pt[0]-s_hull[j][0]))
         
+        s_out.append(next_pt)
+
+    # print_hull(m_hull)
+    # print '\n'
+    # print_hull(m_out)
+    # print 'm_out={0}, s_out={1}'.format(m_out, s_out)
+    new_x = m_out[1][0]
+    new_y = m_out[1][1]
+    min_length=float('inf')
+    if near_eq(ang_diff(m_ang[1],s_ang[0]),pi):
+        offset_x = new_x - s_hull[0][0]
+        offset_y = new_y - s_hull[0][1]
+    else:
+        offset_x=0
+        offset_y=0
+    best_i=0
+    best_j=0
+    min_length=float('inf')
+    for i,j in [(i,j) for i in range(len(s_hull)) for j in range(len(m_hull))]:
+        temp_new_x = m_out[j][0]
+        temp_new_y = m_out[j][1]
+        tempoffset_x = temp_new_x - s_hull[i][0]
+        tempoffset_y = temp_new_y - s_hull[i][1]
+        
+        the_diff=ang_diff(m_ang[j],s_ang[i])
+       # print 'the_diff at {0},{2}={1}'.format(i,the_diff/pi,j)
+        if near_eq(ang_diff(m_ang[j],s_ang[i]),pi) and sqrt(tempoffset_x**2+tempoffset_y**2) < min_length:
+            
+            print('m_hull[{5}]={0}, s_hull[{1}]={2}, m_ang[{5}]={3:.4f}, s_ang[{1}]={4:.4f}, {6}'.format(m_hull[j],i,s_hull[i],m_ang[j]/pi,s_ang[i]/pi,j, min_length))
+            offset_x = tempoffset_x
+            offset_y = tempoffset_y
+            min_length = sqrt(offset_x**2+offset_y**2)
+
+            best_i=i
+            best_j=j
+
+    s_hull=[(s_hull[i][0],s_hull[i][1]) for i in range(len(s_hull))]
+
     
-    
+    return Polygon(m_hull), Polygon(s_hull), offset_x, offset_y,LineString([m_hull[best_j],(s_hull[best_i][0]+offset_x, s_hull[best_i][1]+offset_y)])
+
+def print_hull(the_hull):
+    to_print='({0:.5f}, {1:.5f})'.format(the_hull[0][0], the_hull[0][1])
+
+    for i in range(1,len(the_hull)):
+        to_print+=',({0:.5f},{1:.5f})'.format(the_hull[i][0], the_hull[i][1])
+
+    print '{0}'.format(to_print)
+
+def ang_diff(ang1, ang2):
+    my_diff = ang1 - ang2
+    if my_diff < 0:
+        my_diff = my_diff + 2*pi
+    return my_diff
 
 
 def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
@@ -296,7 +361,36 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
     # else:
     #     return ret_poly_list[0]
 
+def near_eq(a,b):
+    return abs(a-b) <= MIN_DIFF
 
+def near_lt(a,b):
+    return a + MIN_DIFF <= b
+
+def near_gt(a,b):
+    return a - MIN_DIFF >= b
+
+def near_le(a,b):
+    return not near_gt(a,b)
+
+def near_ge(a,b):
+    return not near_lt(a,b)
+
+
+def cmp(a, b):
+    return (a > b) - (a < b)
+
+def turn(p, q, r):
+    return cmp((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]), 0)
+
+def _keep_left(hull, r):
+    while len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_LEFT:
+        hull.pop()
+    if not len(hull) or hull[-1] != r:
+        hull.append(r)
+    return hull
+
+    
 def convex_hull_graham(points):
     '''
     Returns points on convex hull in CCW order according to Graham's scan algorithm. 
@@ -305,21 +399,6 @@ def convex_hull_graham(points):
     TURN_LEFT, TURN_RIGHT, TURN_NONE = (1, -1, 0)
 
     MIN_DIFF=1e-7
-    def near_eq(a,b):
-        return abs(a-b) <= MIN_DIFF
-    
-    def cmp(a, b):
-        return (a > b) - (a < b)
-
-    def turn(p, q, r):
-        return cmp((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]), 0)
-
-    def _keep_left(hull, r):
-        while len(hull) > 1 and turn(hull[-2], hull[-1], r) != TURN_LEFT:
-            hull.pop()
-        if not len(hull) or hull[-1] != r:
-            hull.append(r)
-        return hull
 
     points = sorted(points)
     l = reduce(_keep_left, points, [])
@@ -342,23 +421,6 @@ def convex_hull_jacob(points, big_poly_list):
     '''
     from math import atan2, sqrt, pi
     from bisect import bisect_left, bisect, bisect_right
-    TURN_LEFT, TURN_RIGHT, TURN_NONE = (1, -1, 0)
-
-    MIN_DIFF=1e-7
-    def near_eq(a,b):
-        return abs(a-b) <= MIN_DIFF
-
-    def near_lt(a,b):
-        return a + MIN_DIFF <= b
-
-    def near_gt(a,b):
-        return a - MIN_DIFF >= b
-
-    def near_le(a,b):
-        return not near_gt(a,b)
-
-    def near_ge(a,b):
-        return not near_lt(a,b)
     
     def index(a, x):
         'Locate the leftmost value exactly equal to x'
