@@ -377,27 +377,27 @@ class Map(object):
 
         temp_geom, temp_geom2, self._n_side_off['x'], self._n_side_off['y'], temp_geom3 = get_offset_coords_super_complex(self._projected_bounds, self._side_projected_bounds, main_geom, side_geom, self._position_factor,self)
         
-        temp_STATEFP='26'
-        layer=self.layersById[data['layer']]
-        if len(layer.features)>0:
-            temp_STATEFP=layer.features[0].props['STATEFP']
-            temp_feat=create_feature(temp_geom,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-    #         #print 'Adding temp_feat={0}'.format(temp_feat)
-    # #        layer.features = [temp_feat]
-            layer.features.append(temp_feat)
+#         temp_STATEFP='26'
+#         layer=self.layersById[data['layer']]
+#         if len(layer.features)>0:
+#             temp_STATEFP=layer.features[0].props['STATEFP']
+#             temp_feat=create_feature(temp_geom,{'NAME': 'Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+#     #         #print 'Adding temp_feat={0}'.format(temp_feat)
+#     # #        layer.features = [temp_feat]
+#             layer.features.append(temp_feat)
 
-        # temp_geom2 = get_complex_hull(self._projected_bounds, self._side_projected_bounds, side_geom, self._position_factor, self)
+#         # temp_geom2 = get_complex_hull(self._projected_bounds, self._side_projected_bounds, side_geom, self._position_factor, self)
 
-        layer=self.layersById[data['sidelayer']]
-        if len(layer.features)>0:
-            temp_STATEFP=layer.features[0].props['STATEFP']
-            temp_feat=create_feature(temp_geom2,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
-            temp_feat2=create_feature(temp_geom3,{'NAME': 'Side HullLine', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '99999'})
+#         layer=self.layersById[data['sidelayer']]
+#         if len(layer.features)>0:
+#             temp_STATEFP=layer.features[0].props['STATEFP']
+#             temp_feat=create_feature(temp_geom2,{'NAME': 'Side Hull', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '00000'})
+#             temp_feat2=create_feature(temp_geom3,{'NAME': 'Side HullLine', 'LSAD': '01', 'STATEFP': temp_STATEFP, 'PLACEFP': '99999'})
             
-            layer.features.append(temp_feat)
-            layer.features.append(temp_feat2)
-        print 'self._n_side_off={0}'.format(self._n_side_off)
-#         transform to offset the sidelayers
+#             layer.features.append(temp_feat)
+#             layer.features.append(temp_feat2)
+#         print 'self._n_side_off={0}'.format(self._n_side_off)
+# #         transform to offset the sidelayers
         new_proj_bbox=BBox()
         for layer in self.layers:
             if "sidelayer" in layer.options and layer.options['sidelayer']==data['sidelayer']:
