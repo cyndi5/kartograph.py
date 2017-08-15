@@ -243,7 +243,7 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, positio
         turn_ang = turn_angle(m_hull[i],m_hull[j],m_hull[k])/pi
 
         sign_mult = 1 if turn_ang > 0 and turn_ang < 1 else -1
-        print 'm[{2}]: ang_1={0:.5f}, ang_2={1:.5f}, ang_3={3:.5f}'.format(ang_1/pi, ang_2/pi,l,turn_ang)
+        # print 'm[{2}]: ang_1={0:.5f}, ang_2={1:.5f}, ang_3={3:.5f}'.format(ang_1/pi, ang_2/pi,l,turn_ang)
         next_pt = (m_hull[j][0] + sign_mult*the_dist*(cos(ang_1)-cos(ang_2)), m_hull[j][1] + sign_mult*the_dist*(sin(ang_1)-sin(ang_2)))
         
         m_ang.append(atan2(next_pt[1]-m_hull[j][1],next_pt[0]-m_hull[j][0]))
@@ -257,7 +257,7 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, positio
         turn_ang = turn_angle(s_hull[i],s_hull[j],s_hull[k])/pi
 
         sign_mult = 1 if turn_ang > 0 and turn_ang < 1 else -1
-        print 's[{2}]: ang_1={0:.5f}, ang_2={1:.5f}'.format(ang_1/pi, ang_2/pi,l)
+        # print 's[{2}]: ang_1={0:.5f}, ang_2={1:.5f}'.format(ang_1/pi, ang_2/pi,l) 
 
         next_pt = (s_hull[j][0] + sign_mult*the_dist*(cos(ang_1)-cos(ang_2)), s_hull[j][1] + sign_mult*the_dist*(sin(ang_1)-sin(ang_2)))
         s_ang.append(atan2(next_pt[1]-s_hull[j][1],next_pt[0]-s_hull[j][0]))
@@ -290,7 +290,7 @@ def get_offset_coords_super_complex(mainbbox, sidebbox, geom, side_geom, positio
         temp_min_max_length = min_max_length(m_hull, s_hull, tempoffset_x, tempoffset_y)
         if near_eq(ang_diff(m_ang[j],s_ang[i]),pi) and temp_min_max_length < min_length and adequate_spacing(m_hull, s_hull, tempoffset_x, tempoffset_y, the_dist/4.):
             
-            print('m_hull[{5}]={0}, s_hull[{1}]={2}, m_ang[{5}]={3:.4f}, s_ang[{1}]={4:.4f}, len={6}'.format(m_hull[j],i,s_hull[i],m_ang[j]/pi,s_ang[i]/pi,j, temp_min_max_length))
+            # print('m_hull[{5}]={0}, s_hull[{1}]={2}, m_ang[{5}]={3:.4f}, s_ang[{1}]={4:.4f}, len={6}'.format(m_hull[j],i,s_hull[i],m_ang[j]/pi,s_ang[i]/pi,j, temp_min_max_length))
             offset_x = tempoffset_x
             offset_y = tempoffset_y
             min_length = temp_min_max_length
@@ -363,7 +363,7 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
     for poly in big_poly_list:
         pt_0=poly.exterior.coords[0]
         #coord_list=[]
-        for coord in poly.exterior.coords[:-1]:
+        for coord in poly.exterior.coords:
             coord_list.append(coord)
         
     #curr_poly = Polygon(coord_list).convex_hull
@@ -371,6 +371,7 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
 
     curr_poly = Polygon(convex_hull_jacob(coord_list, big_poly_list))
 
+#    return geom.convex_hull
     return curr_poly
     # print 'Bounds(curr_poly)={0}'.format(curr_poly.bounds)
     # ret_poly_list.append(curr_poly)
@@ -550,8 +551,6 @@ def convex_hull_jacob(points, big_poly_list):
         return best_pt
 
     
-    def _line_angle(a,b):
-        return atan2(b[1]-a[1],b[0]-a[0])
 
     def get_x_intersection(y,ptA,ptB):
         if ptA[0]==ptB[0]:
@@ -662,6 +661,7 @@ def convex_hull_jacob(points, big_poly_list):
                     ret_hull.append(temp_pt3)
 
         return ret_hull
+
     
     pt0 = min(points, key = lambda pt: pt[0])
     points.remove(pt0)
@@ -680,16 +680,16 @@ def convex_hull_jacob(points, big_poly_list):
 #    pt_array = [pt0]
     points = sorted(points, key = lambda pt: pt[0])
     big_hull_list = [p.exterior.coords[:-1] for p in big_poly_list]
+    print('len(points) before add_hull={0}'.format(len(points)))
     ret_hull = _add_hull(points,l, big_hull_list)
-
-    for i in range(0,len(ret_hull)):
-        j=(i+1)%len(ret_hull)
-        k=(i+2)%len(ret_hull)
-        # print('{0},{1},{2},\n\ttheta={3:.4f}'.format(ret_hull[i],ret_hull[j],ret_hull[k],turn_angle(ret_hull[i],ret_hull[j],ret_hull[k])/pi))
-    
-    print('len(points)={0}'.format(len(points)))
+    print('len(hull) after add_hull={0}'.format(len(ret_hull)))
     return ret_hull
     #return l.extend(u[i] for i in range(1, len(u) - 1)) or l
+
+def _line_angle(a,b):
+    return atan2(b[1]-a[1],b[0]-a[0])
+
+    
 
 
 def ccw(p1, p2, p3):
