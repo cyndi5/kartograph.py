@@ -7,6 +7,7 @@ from feature import create_feature
 from shapely.geometry import Point, Polygon, LineString, MultiPolygon
 from math import atan, cos, sin, atan2, pi,sqrt, hypot, floor, ceil
 from copy import deepcopy
+from polypoint import PolyPoint
 
 TURN_LEFT, TURN_RIGHT, TURN_NONE = (1, -1, 0)
 
@@ -348,7 +349,8 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
     max_area=0
     best_poly = None
     coord_list=[]
-    poly_list=[]
+    seg_list=[]
+    polypoint_list=[]
     # print('Getting complex hull')
 
     ret_poly_list=[]
@@ -362,10 +364,12 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
     next_poly_list=[]
     
     for poly in big_poly_list:
-        pt_0=poly.exterior.coords[0]
+        temp_poly=poly.exterior.coords[:-1]
         #coord_list=[]
-        for coord in poly.exterior.coords:
-            coord_list.append(coord)
+        for i in range(len(temp_poly)):
+            j=(i-1) % len(temp_poly)
+            k=(i+1) % len(temp_poly)
+            coord_list.append(PolyPoint(temp_poly[i][0],temp_poly[i][1],temp_poly[j][0],temp_poly[j][1],temp_poly[k][0],temp_poly[k][1]))
         
     #curr_poly = Polygon(coord_list).convex_hull
     #ret_poly_list.append(curr_poly)
@@ -485,6 +489,7 @@ def convex_hull_jacob(points, big_poly_list):
         return (a > b) - (a < b)
 
     def turn(p, q, r):
+        print('type of p is {0}, p.x == p[0] = {1}'.format(type(p), p.x == p[0]))
         return cmp((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]), 0)
     
     def _keep_left(hull, r):
@@ -582,6 +587,8 @@ as well '''
         pt_ct=0
         for i in the_iter:
             pt_ct+=1
+            if not (to_search[i][1] >= min(ptA[1], ptB[1]) and to_search[i][1] <= max(ptA[1], ptB[1])):
+                continue
             (x,y)=map_pos(to_search[i][0],to_search[i][1])
             if x < num_divs and y < num_divs and 0 <= x and 0<=y:
                 is_full[(x,y)]=True
@@ -624,7 +631,7 @@ as well '''
         return x*slope + intercept
 
     
-    def _add_hull(points, hull, indiv_hulls):
+    def _add_hull(points, hull):
         # Need to check if two points on convex hull are on same simple polygon or not??
         ret_hull=[]
         x_points = points
@@ -722,10 +729,10 @@ as well '''
         return ret_hull
 
     
-    pt0 = min(points, key = lambda pt: pt[0])
+    pt0 = min(points, key = lambda pt: pt.x)
     points.remove(pt0)
 #    pt_array = [pt0]
-    points = sorted(points, key = lambda pt: atan2(pt[1] - pt0[1],pt[0] - pt0[0] ))
+    points = sorted(points, key = lambda pt: atan2(pt.y - pt0.y,pt.x - pt0.x ))
     points.insert(0,pt0)
 
     # = reduce(_keep_left, points, [])
@@ -737,13 +744,12 @@ as well '''
    # pt0 = min(points, key = lambda pt: pt[0])
    # points.remove(pt0)
 #    pt_array = [pt0]
-    points = sorted(points, key = lambda pt: pt[0])
-    big_hull_list = [p.exterior.coords[:-1] for p in big_poly_list]
+    points = sorted(points, key = lambda pt: pt.x)
     print('len(l) before add_hull={0}'.format(len(l)))
-    ret_hull = _add_hull(points,l, big_hull_list)
+    ret_hull = _add_hull(points,l)
     print('len(hull) after add_hull={0}'.format(len(ret_hull)))
     return ret_hull
-    #return l.extend(u[i] for i in range(1, len(u) - 1)) or l
+#return l.extend(u[i] for i in range(1, len(u) - 1)) or l
 
 def _line_angle(a,b):
     return atan2(b[1]-a[1],b[0]-a[0])

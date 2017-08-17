@@ -1,6 +1,6 @@
 
 
-class Point():
+class Point(object):
     """ base class for points, used by line and bbox """
 
     def __init__(self, x, y):
