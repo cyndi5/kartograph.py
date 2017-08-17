@@ -30,7 +30,7 @@ class Kartograph(object):
         self.viewCache = {}
         self.unionCache = {}
         self.shapeCache = {}
-        self.lsad_map={ '01': 'Fake Feature', '03': 'City and Borough','04': 'Borough', '05': 'Census Area','06': 'County','07': 'District', '10': 'Island', '12': 'Municipality', '13': 'Municipio', '15': 'Parish', '21': 'borough', '25': 'city','26': 'county','31':'gore','32':'grant','36':'location','37':'municipality','42':'purchase','43':'town','44': 'township', '47': 'village','53':'city and borough','57':'CDP','CB':'consolidated government (balance)','CN': 'corporation', 'UB': 'unified government (balance)', 'UC': 'urban county (suffix)'}
+        self.lsad_map={ '00': '', '01': 'Fake Feature', '03': 'City and Borough','04': 'Borough', '05': 'Census Area','06': 'County','07': 'District', '10': 'Island', '12': 'Municipality', '13': 'Municipio', '15': 'Parish', '21': 'borough', '25': 'city','26': 'county','31':'gore','32':'grant','36':'location','37':'municipality','42':'purchase','43':'town','44': 'township', '47': 'village','53':'city and borough','57':'CDP','CB':'consolidated government (balance)','CN': 'corporation', 'UB': 'unified government (balance)', 'UC': 'urban county (suffix)'}
         self.state_fips={'01': 'Alabama', '02': 'Alaska', '04': 'Arizona',
         '05': 'Arkansas', '06': 'California', '08': 'Colorado', '09': 'Connecticut',
         '10': 'Delaware', '11': 'District of Columbia', '12': 'Florida',
