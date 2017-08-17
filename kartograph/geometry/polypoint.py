@@ -32,4 +32,7 @@ class PolyPoint(Point):
             self.next_x = value
         elif k==5:
             self.next_y = value
+
+    def __repr__(self):
+        return '[{0},{1},{2},{3},{4},{5}]'.format(self[0],self[1],self[2],self[3],self[4],self[5])
     

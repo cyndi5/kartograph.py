@@ -367,9 +367,10 @@ def get_complex_hull(mainbbox, sidebbox, geom, position_factor, the_map):
         temp_poly=poly.exterior.coords[:-1]
         #coord_list=[]
         for i in range(len(temp_poly)):
-            j=(i-1) % len(temp_poly)
-            k=(i+1) % len(temp_poly)
-            coord_list.append(PolyPoint(temp_poly[i][0],temp_poly[i][1],temp_poly[j][0],temp_poly[j][1],temp_poly[k][0],temp_poly[k][1]))
+            j=(i+1) % len(temp_poly)
+            k=(i-1) % len(temp_poly)
+            temp_pt=PolyPoint(temp_poly[i][0],temp_poly[i][1],temp_poly[j][0],temp_poly[j][1],temp_poly[k][0],temp_poly[k][1])
+            coord_list.append(temp_pt)
         
     #curr_poly = Polygon(coord_list).convex_hull
     #ret_poly_list.append(curr_poly)
@@ -489,7 +490,6 @@ def convex_hull_jacob(points, big_poly_list):
         return (a > b) - (a < b)
 
     def turn(p, q, r):
-        print('type of p is {0}, p.x == p[0] = {1}'.format(type(p), p.x == p[0]))
         return cmp((q[0] - p[0])*(r[1] - p[1]) - (r[0] - p[0])*(q[1] - p[1]), 0)
     
     def _keep_left(hull, r):
@@ -580,18 +580,67 @@ as well '''
         width = abs(inner_pt[0] - outer_pt[0])
         height = abs(inner_pt[1] - outer_pt[1])
         is_full = {(i,j) : False for i in range(num_divs) for j in range(num_divs)}
-        lo = find_ge(keys,min(ptA[other_coord],ptB[other_coord]))
-        hi= find_le(keys,max(ptA[other_coord],ptB[other_coord]))
+        lo = find_gt(keys,min(ptA[other_coord],ptB[other_coord]))
+        hi= find_lt(keys,max(ptA[other_coord],ptB[other_coord]))
         the_iter=range(lo,hi+1,1)
-        map_pos = lambda x, y: (int(floor(num_divs*abs(x-outer_pt[0])/width)), int(floor(num_divs*abs(y-outer_pt[1])/height)))
+        map_x = lambda x: int(floor(num_divs*abs(x-outer_pt[0])/width))
+        map_y = lambda y: int(floor(num_divs*abs(y-outer_pt[1])/height))
+        
+        map_pos = lambda x, y: (map_x(x),map_y(y))
         pt_ct=0
+        set_lines=[]
+        set_linesB=[]
         for i in the_iter:
-            pt_ct+=1
+            pt_ct=pt_ct+1
+            set_lines=[]
+            set_linesB=[]
+            # print 'to_search[i]={0}'.format(to_search[i])
             if not (to_search[i][1] >= min(ptA[1], ptB[1]) and to_search[i][1] <= max(ptA[1], ptB[1])):
                 continue
             (x,y)=map_pos(to_search[i][0],to_search[i][1])
             if x < num_divs and y < num_divs and 0 <= x and 0<=y:
                 is_full[(x,y)]=True
+
+                (prev_x,prev_y)=map_pos(to_search[i][2],to_search[i][3])
+                (next_x,next_y)=map_pos(to_search[i][4],to_search[i][5])
+                # if is_left and is_above:
+                #     print '(prev_x,prev_y)={0}, (next_x, next_y)={1}'.format((prev_x,prev_y),(next_x,next_y))
+                if to_search[i][0]==to_search[i][2]:
+                    for temp_y in range(min(y,prev_y),max(y,prev_y)+1):
+                        is_full[(x,temp_y)]=True
+                else:
+                    slope1,int1 = slope_intercept((to_search[i][0],to_search[i][1]),(to_search[i][2],to_search[i][3]))
+                    t_func = lambda x: slope1*x+int1
+                    for temp_x in range(max(0,min(x,prev_x)),min(num_divs,max(x,prev_x)+1)):
+                        ty1 = map_y(t_func(outer_pt[0]+x_sign*temp_x*(width/num_divs)))
+                        ty2 = map_y(t_func(outer_pt[0]+x_sign*(temp_x+1.0)*(width/num_divs)))
+                        t_miny=min(ty1,ty2)
+                        t_maxy=max(ty1,ty2)
+                        for temp_y in range(max(t_miny,0), min(t_maxy+1,num_divs)):
+                            # print '({0},{1}) set to True'.format(temp_x,temp_y)
+                            is_full[(temp_x,temp_y)] = True
+                            set_lines.append((temp_x,temp_y))
+           
+
+                if to_search[i][0]==to_search[i][4]:
+                    for temp_y in range(min(y,next_y),max(y,next_y)+1):
+                        is_full[(x,temp_y)]=True
+                else:
+                    slope1,int1 = slope_intercept((to_search[i][0],to_search[i][1]),(to_search[i][4],to_search[i][5]))
+
+                    t_func = lambda x: slope1*x+int1
+                    for temp_x in range(max(0,min(x,next_x)),min(num_divs,max(x,next_x)+1)):
+                        ty1 = map_y(t_func(outer_pt[0]+x_sign*temp_x*(width/num_divs)))
+                        ty2 = map_y(t_func(outer_pt[0]+x_sign*(temp_x+1.0)*(width/num_divs)))
+                        t_miny=min(ty1,ty2)
+                        t_maxy=max(ty1,ty2)
+                        for temp_y in range(max(t_miny,0), min(t_maxy+1,num_divs)):
+                            # print '({0},{1}) set to True'.format(temp_x,temp_y)
+                            is_full[(temp_x,temp_y)] = True
+                            set_linesB.append((temp_x,temp_y))
+                # if is_left and is_above:
+                #     print('set_lines={0}\tset_linesB={1}'.format(set_lines, set_linesB))         
+                    
             # Need to fill the gap 
         for i in range(num_divs):
             for j in range(num_divs):
@@ -602,13 +651,18 @@ as well '''
                         is_full[(i,k)]=True
         if pt_ct==0:
             print('no pts')
-            return (ptA[0], ptA[1])
+            best_pt=(inner_pt[0],inner_pt[1])
+            print 'ptA={0}, ptB={1}, best_pt={2}, outer_pt={3}\n'.format(ptA,ptB,best_pt,outer_pt)
+            return best_pt
         try:
             unfull=[(x,y) for (x,y) in is_full if not is_full[(x,y)]]
-            print 'unfull={0}'.format(unfull)
+            full=[(x,y) for (x,y) in is_full if is_full[(x,y)]]
             (x,y) = max(unfull, key = lambda (x,y): x+y)
             best_pt = (outer_pt[0] + x_sign * width * (x+1) / num_divs, outer_pt[1] + y_sign * height * (y+1) / num_divs)
-            print 'ptA={0}, ptB={1}, (x,y)={2}, best_pt={3}, outer_pt={4}'.format(ptA,ptB,(x,y),best_pt,outer_pt)
+            if is_left and is_above:
+                print 'full={0}'.format(full)
+
+                print 'ptA={0}, ptB={1}, (x,y)={2}, best_pt={3}, outer_pt={4}\n'.format(ptA,ptB,(x,y),best_pt,outer_pt)
 
         except ValueError:
             best_pt=(outer_pt[0], outer_pt[1])
@@ -630,6 +684,13 @@ as well '''
         intercept = ptB[1]-slope*ptB[0]
         return x*slope + intercept
 
+    def slope_intercept(ptA,ptB):
+        if ptA[0]==ptB[0]:
+            raise ValueError
+        slope = (ptB[1]-ptA[1])/(ptB[0]-ptA[0])
+        intercept = ptB[1]-slope*ptB[0]
+        return slope, intercept
+
     
     def _add_hull(points, hull):
         # Need to check if two points on convex hull are on same simple polygon or not??
@@ -644,7 +705,7 @@ as well '''
             ang = _line_angle(hull[i],hull[j])
             ret_hull.append(hull[i])
             temp_pt1 = temp_pt2 = temp_pt3 = None
-            # print('hull[{0}]={1}, hull[{2}]={3}'.format(i,hull[i],j,hull[j]))
+            print('hull[{0}]={1}, hull[{2}]={3}'.format(i,hull[i],j,hull[j]))
             if near_lt(0,ang) and near_lt(ang,pi/2):
                 # print('0 < ang < pi/2')
                 #continue
@@ -670,18 +731,22 @@ as well '''
                 # print('-pi/2 < ang < 0')
                 #continue
                 min_pt=get_best_pt_crosssec(x_keys, x_points,hull[i],hull[j],True,True,ang)
-                # print '\tmin_pt={0}'.format(min_pt)
+                print '\tmin_pt={0}'.format(min_pt)
 
-                if near_ge(min_pt[0],max(hull[i][0],hull[j][0])):
-                    # temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
-                    # temp_pt2=(hull[j][0],min_pt[1])
-                    temp_pt1 = (hull[i][0],min_pt[1])
-                    temp_pt2=(hull[j][0],min_pt[1])
+                temp_pt1 = (hull[i][0],min_pt[1])
+                temp_pt2 = (min_pt[0], min_pt[1])
+                temp_pt3=(min_pt[0], hull[j][1])
 
-                else:
-                    temp_pt1 = (hull[i][0],min_pt[1])
-                    temp_pt2 = (min_pt[0], min_pt[1])
-                    temp_pt3=(min_pt[0], hull[j][1])
+                # if near_gt(min_pt[0],max(hull[i][0],hull[j][0])):
+                #     # temp_pt1 = (get_x_intersection(min_pt[1],hull[i],hull[j]),min_pt[1])
+                #     # temp_pt2=(hull[j][0],min_pt[1])
+                #     temp_pt1 = (hull[i][0],min_pt[1])
+                #     temp_pt2=(hull[j][0],min_pt[1])
+
+                # else:
+                #     temp_pt1 = (hull[i][0],min_pt[1])
+                #     temp_pt2 = (min_pt[0], min_pt[1])
+                #     temp_pt3=(min_pt[0], hull[j][1])
 
 
             elif near_lt(-pi,ang) and near_lt(ang,-pi/2):
@@ -714,18 +779,18 @@ as well '''
 
             else:
                 continue
-            ret_hull.append(min_pt)
-            # temp_pt1 = temp_pt1# if is_a else temp_ptb1
-            # temp_pt2 = temp_pt2# if is_a else temp_ptb2
-            # # temp_pt3 = None if
-            # # if temp_pta3 is not None:# and temp_ptb3 is not None:
-            # #     temp_pt3 = temp_pta3 #if is_a else temp_ptb3
-            # if length(temp_pt1,hull[i])>0 and length(temp_pt2, hull[j])>0:
-            #     ret_hull.append(temp_pt1)
-            #     ret_hull.append(temp_pt2)
-            #     if temp_pt3 is not None:
-            #         ret_hull.append(temp_pt3)
-
+            # ret_hull.append(min_pt)
+            temp_pt1 = temp_pt1# if is_a else temp_ptb1
+            temp_pt2 = temp_pt2# if is_a else temp_ptb2
+            # temp_pt3 = None if
+            # if temp_pta3 is not None:# and temp_ptb3 is not None:
+            #     temp_pt3 = temp_pta3 #if is_a else temp_ptb3
+            if length(temp_pt1,hull[i])>0:
+                ret_hull.append(temp_pt1)
+            if length(temp_pt2,hull[j])>0:
+                ret_hull.append(temp_pt2)
+            if temp_pt3 is not None and length(temp_pt3,hull[j])>0:
+                ret_hull.append(temp_pt3)
         return ret_hull
 
     
