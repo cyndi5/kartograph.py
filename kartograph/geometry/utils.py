@@ -570,7 +570,7 @@ as well '''
         cross_bool = bool(not is_left) ^ bool(is_above)
         x_sign = 1 if is_left else -1
         y_sign = 1 if is_above else -1
-        
+        z_sign = x_sign
         if not cross_bool:
             inner_pt = (ptA[0], ptB[1])
             outer_pt = (ptB[0], ptA[1])
@@ -651,7 +651,7 @@ as well '''
                         is_full[(i,k)]=True
         if pt_ct==0:
             print('no pts')
-            best_pt=(inner_pt[0],inner_pt[1])
+            best_pt=(outer_pt[0],outer_pt[1])
             print 'ptA={0}, ptB={1}, best_pt={2}, outer_pt={3}\n'.format(ptA,ptB,best_pt,outer_pt)
             return best_pt
         try:

@@ -268,7 +268,18 @@ class Map(object):
         else:
             # It's already been cached, load it all from cache
             for layer in self.layers:
-                if len(layer.features)==0:
+                print 'layer.id={0}'.format(layer.id)
+                if layer.id=='highlightlayer':
+                    for feature in layer.features:
+                        if feature.props['NAME'] not in self.viewCache[cache_str][layer.id]:
+                            feature.project_view(self.view)
+                            self.viewCache[cache_str][layer.id][feature.props['NAME']]=deepcopy(feature)
+
+                        else:
+                            #print('Cached {0}'.format(feature.props['NAME']))
+                            feature.geometry=deepcopy(self.viewCache[cache_str][layer.id][feature.props['NAME']].geometry)
+                            #print 'cached feature {0}'.format(self.viewCache[cache_str][layer.id][feature.props['NAME']])                    
+                elif len(layer.features)==0:
                     # nothing there just append everything
                     for feat_name in self.viewCache[cache_str][layer.id]:
                         layer.features.append(deepcopy(self.viewCache[cache_str][layer.id][feat_name]))
